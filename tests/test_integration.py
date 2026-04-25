@@ -74,8 +74,12 @@ def _run_env(tmpdir):
     env = os.environ.copy()
     env["PI_AGENT_IMAGE"] = TEST_IMAGE
     env["PI_AGENT_CONFIG"] = str(pathlib.Path(tmpdir) / "pi-config")
-    env["ANTHROPIC_API_KEY"] = ""
-    env["OPENAI_API_KEY"] = ""
+
+    # Create a fake env file and point run.sh to it via PI_AGENT_ENV_FILE
+    # (we don't override HOME so podman can find its storage with the pre-built image)
+    env_file = pathlib.Path(tmpdir) / ".env"
+    env_file.write_text("VLLM_API_KEY=\nOPENROUTER_API_KEY=\n")
+    env["PI_AGENT_ENV_FILE"] = str(env_file)
     return env
 
 
