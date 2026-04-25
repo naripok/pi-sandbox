@@ -136,7 +136,7 @@ No systemd. No custom init scripts. The container starts a shell. When the shell
 ### 5.1 Host-Side (This Repository)
 
 ```
-~/Projects/firecracker-vm/          # Repository root (will be renamed)
+~/Projects/pi-sandbox/          # Repository root
 ├── SPEC.md                         # This document
 ├── Containerfile                   # Image definition
 ├── run.sh                          # Launch script
@@ -256,13 +256,13 @@ exec podman run -it --rm \
 cd ~/Projects/my-project
 
 # Drop into a shell in the isolated environment
-../firecracker-vm/run.sh
+../pi-sandbox/run.sh
 
 # Run pi directly
-../firecracker-vm/run.sh pi -p "Review the codebase"
+../pi-sandbox/run.sh pi -p "Review the codebase"
 
 # Run arbitrary commands
-../firecracker-vm/run.sh npm test
+../pi-sandbox/run.sh npm test
 ```
 
 ---
