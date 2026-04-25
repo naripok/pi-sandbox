@@ -30,9 +30,11 @@ def test_run_script_generates_correct_podman_command():
 
         env = os.environ.copy()
         env["PATH"] = f"{tmpdir}:{env['PATH']}"
-        env["ANTHROPIC_API_KEY"] = "test-anthropic-key"
-        env["OPENAI_API_KEY"] = "test-openai-key"
+        env["HOME"] = str(tmpdir)
         env["PI_AGENT_CONFIG"] = str(fake_config)
+
+        # Create a fake ~/.env with test API keys
+        (tmpdir / ".env").write_text("VLLM_API_KEY=test-vllm-key\nOPENROUTER_API_KEY=test-openrouter-key\n")
 
         result = subprocess.run(
             [str(REPO_ROOT / "run.sh"), "pi", "-p", "hello"],
@@ -62,7 +64,7 @@ def test_run_script_generates_correct_podman_command():
         assert "/workspace" in run_line
         assert "/pi-data:ro" in run_line
         assert "/pi-data/sessions" in run_line
-        assert "ANTHROPIC_API_KEY" in run_line
-        assert "OPENAI_API_KEY" in run_line
+        assert "VLLM_API_KEY" in run_line
+        assert "OPENROUTER_API_KEY" in run_line
         assert "pi-agent-isolated" in run_line
         assert "pi -p hello" in run_line
