@@ -221,11 +221,38 @@ set -euo pipefail
 IMAGE_NAME="pi-agent-isolated"
 CONTAINER_NAME="pi-agent-$(basename "$PWD")"
 GLOBAL_CONFIG="${HOME}/.pi/agent"
+ENV_FILE="${PI_AGENT_ENV_FILE:-${HOME}/.env}"
 
 # Ensure the image exists
 if ! podman image exists "$IMAGE_NAME"; then
     echo "Building image ${IMAGE_NAME}..."
     podman build -t "$IMAGE_NAME" "$(dirname "$0")"
+fi
+
+# Forward all variables defined in the env file
+ENV_ARGS=()
+if [ -f "$ENV_FILE" ]; then
+    set -a
+    # shellcheck source=/dev/null
+    source "$ENV_FILE"
+    set +a
+
+    while IFS= read -r key; do
+        [[ -z "$key" ]] && continue
+        ENV_ARGS+=(-e "$key")
+    done < <(awk '
+        /^[[:space:]]*#/ { next }
+        /^[[:space:]]*$/ { next }
+        {
+            gsub(/^[[:space:]]*export[[:space:]]+/, "")
+            match($0, /^[[:space:]]*[^=[:space:]]+/)
+            if (RLENGTH > 0) {
+                key = substr($0, RSTART, RLENGTH)
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+                print key
+            }
+        }
+    ' "$ENV_FILE")
 fi
 
 # Run container with explicit mounts only
@@ -234,8 +261,7 @@ exec podman run -it --rm \
     --userns=keep-id \
     -v "$(pwd):/workspace" \
     -v "${GLOBAL_CONFIG}:/pi-data:ro" \
-    -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-}" \
-    -e OPENAI_API_KEY="${OPENAI_API_KEY:-}" \
+    "${ENV_ARGS[@]}" \
     "$IMAGE_NAME" \
     "$@"
 ```
@@ -248,7 +274,7 @@ exec podman run -it --rm \
 | `--userns=keep-id`           | Maps container UID to host UID. Files written by the agent appear owned by you on the host. |
 | `-v $(pwd):/workspace`       | The _entire_ project directory, read-write.                                                 |
 | `-v ~/.pi/agent:/pi-data:ro` | Global pi config, read-only.                                                                |
-| `-e ANTHROPIC_API_KEY=...`   | API keys injected from host environment. Never written to disk.                             |
+| `~/.env` → `-e <var>`        | All variables defined in `~/.env` (or `PI_AGENT_ENV_FILE`) are forwarded to the container.  |
 
 ### 7.2 Usage
 
@@ -377,7 +403,7 @@ podman run --rm -v "$(pwd):/workspace" pi-agent-isolated ls -la /
 
 | Feature | Description                                          | Motivation                         |
 | ------- | ---------------------------------------------------- | ---------------------------------- |
-| FE-001  | Per-project API key injection via `.env`             | Avoid passing keys via environment |
+| FE-001  | ✅ Env file forwarding via `~/.env`                  | Variables in `~/.env` are auto-forwarded to the container; override with `PI_AGENT_ENV_FILE` |
 | FE-002  | `--network=slirp4netns` with outbound logging        | Reduce network exfiltration risk   |
 | FE-003  | Pre-built image caching / registry                   | Faster startup on new machines     |
 | FE-004  | Container health check / auto-restart                | Long-running agent sessions        |
