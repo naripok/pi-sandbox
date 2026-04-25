@@ -64,3 +64,84 @@ def test_pi_coding_agent_is_installed(built_image):
     )
     assert result.returncode == 0
     assert "pi" in result.stdout
+
+
+# --- End-to-end workflow via run.sh ---
+
+
+def _run_env(tmpdir):
+    """Build the environment dict for run.sh invocations."""
+    env = os.environ.copy()
+    env["PI_AGENT_IMAGE"] = TEST_IMAGE
+    env["PI_AGENT_CONFIG"] = str(pathlib.Path(tmpdir) / "pi-config")
+    env["ANTHROPIC_API_KEY"] = ""
+    env["OPENAI_API_KEY"] = ""
+    return env
+
+
+def test_run_script_mounts_current_directory(built_image):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = pathlib.Path(tmpdir)
+        marker = tmpdir / "PROJECT_MARKER"
+        marker.write_text("found")
+
+        env = _run_env(tmpdir)
+
+        result = subprocess.run(
+            [str(REPO_ROOT / "run.sh"), "cat", "/workspace/PROJECT_MARKER"],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(tmpdir),
+        )
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == "found"
+
+
+def test_global_config_is_readonly_in_container(built_image):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = pathlib.Path(tmpdir)
+        config_dir = tmpdir / "pi-config"
+        config_dir.mkdir()
+        (config_dir / "settings.json").write_text("{}")
+
+        env = _run_env(tmpdir)
+
+        result = subprocess.run(
+            [
+                str(REPO_ROOT / "run.sh"),
+                "bash", "-c",
+                "touch /pi-data/should_fail 2>/dev/null; echo $?",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(REPO_ROOT),
+        )
+        assert result.returncode == 0, result.stderr
+        # touch on a read-only mount should fail with exit code 1
+        assert result.stdout.strip() == "1"
+
+
+def test_sessions_dir_is_writable_in_container(built_image):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = pathlib.Path(tmpdir)
+        config_dir = tmpdir / "pi-config"
+        config_dir.mkdir()
+        (config_dir / "sessions").mkdir()
+
+        env = _run_env(tmpdir)
+
+        result = subprocess.run(
+            [
+                str(REPO_ROOT / "run.sh"),
+                "bash", "-c",
+                "touch /pi-data/sessions/test_write && echo ok",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(REPO_ROOT),
+        )
+        assert result.returncode == 0, result.stderr
+        assert "ok" in result.stdout
