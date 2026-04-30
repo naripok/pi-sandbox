@@ -4,6 +4,9 @@ RUN pacman -Syu --noconfirm && \
     pacman -S --noconfirm nodejs npm git openssh bash fd ripgrep && \
     pacman -Scc --noconfirm
 
+# Strip setuid/setgid bits — hardening the image
+RUN find / \( -path /proc -o -path /sys \) -prune -o -perm /6000 -type f -exec chmod a-s {} +
+
 RUN npm install -g @mariozechner/pi-coding-agent
 
 RUN useradd -m -u 1000 -s /bin/bash pi

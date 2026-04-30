@@ -59,6 +59,14 @@ def test_run_script_generates_correct_podman_command():
         assert "run" in run_line
         assert "--rm" in run_line
         assert "--userns=keep-id" in run_line
+        assert "--cap-drop=ALL" in run_line
+        assert "--security-opt=no-new-privileges" in run_line
+        assert "--read-only" in run_line
+        assert "--tmpfs" in run_line
+        assert "/tmp" in run_line
+        assert "--pids-limit" in run_line
+        assert "--memory" in run_line
+        assert "--cpus" in run_line
         assert "--name" in run_line
         assert "pi-agent-" in run_line
         assert "/workspace" in run_line

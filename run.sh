@@ -49,6 +49,13 @@ TTY_FLAG=""
 exec podman run -i ${TTY_FLAG} --rm \
     --name "$CONTAINER_NAME" \
     --userns=keep-id \
+    --cap-drop=ALL \
+    --security-opt=no-new-privileges \
+    --read-only \
+    --tmpfs /tmp \
+    --pids-limit 1024 \
+    --memory 8g \
+    --cpus 4 \
     -v "$(pwd):/workspace" \
     -v "${GLOBAL_CONFIG}:/pi-data:ro" \
     -v "${GLOBAL_CONFIG}/sessions:/pi-data/sessions:rw" \
