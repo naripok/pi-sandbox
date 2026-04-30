@@ -1,7 +1,7 @@
 FROM archlinux:latest
 
 RUN pacman -Syu --noconfirm && \
-    pacman -S --noconfirm nodejs npm git openssh bash && \
+    pacman -S --noconfirm nodejs npm git openssh bash fd ripgrep && \
     pacman -Scc --noconfirm
 
 RUN npm install -g @mariozechner/pi-coding-agent
