@@ -1,7 +1,7 @@
 FROM archlinux:latest
 
 RUN pacman -Syu --noconfirm && \
-    pacman -S --noconfirm nodejs npm git openssh bash fd ripgrep && \
+    pacman -S --noconfirm nodejs npm git openssh bash fd ripgrep python uv gcc make ast-grep && \
     pacman -Scc --noconfirm
 
 # Strip setuid/setgid bits — hardening the image
