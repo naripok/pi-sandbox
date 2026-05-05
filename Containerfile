@@ -17,6 +17,7 @@ RUN chown pi:pi /home/pi/.bashrc
 ENV PI_CODING_AGENT_DIR=/pi-data
 ENV HOME=/home/pi
 ENV TERM=xterm-256color
+ENV COLORTERM=truecolor
 
 USER pi
 WORKDIR /workspace
