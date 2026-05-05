@@ -2,7 +2,7 @@
 set -euo pipefail
 
 IMAGE_NAME="${PI_AGENT_IMAGE:-pi-agent-isolated}"
-CONTAINER_NAME="pi-agent-$(basename "$PWD")"
+CONTAINER_NAME="pi-agent-$(basename "$PWD")-${RANDOM}"
 GLOBAL_CONFIG="${PI_AGENT_CONFIG:-${HOME}/.pi/agent}"
 ENV_FILE="${PI_AGENT_ENV_FILE:-${HOME}/.env}"
 
