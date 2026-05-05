@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Container entrypoint for persistent per-project volume.
-# Runs as root (USER root in Containerfile), drops to pi via su -l.
+# Runs as root (USER root in Containerfile), drops to pi via setpriv.
+# Uses setpriv instead of su because setuid binaries are stripped for security.
 
 DATA_DIR=/home/pi/.pi-agent-data
 
@@ -23,7 +24,7 @@ if [ ! -f /home/pi/.bashrc ]; then
 fi
 
 # Create .bash_profile that sources .bashrc on first run.
-# Required for non-interactive login shells (su -l) to load PATH and env vars.
+# Required for login shells to load PATH and env vars.
 if [ ! -f /home/pi/.bash_profile ]; then
     printf 'if [ -f ~/.bashrc ]; then\n  . ~/.bashrc\nfi\n' > /home/pi/.bash_profile
 fi
@@ -36,8 +37,15 @@ chown -R pi:pi /home/pi
 # Configure package managers for user-level installs on first run
 if [ ! -d /home/pi/.local ]; then
     mkdir -p /home/pi/.local
-    su -l pi -c 'npm config set prefix "$HOME/.local"'
+    HOME=/home/pi SHELL=/bin/bash setpriv --reuid=pi --regid=pi --init-groups \
+        -- npm config set prefix "/home/pi/.local"
 fi
 
+# Set up pi user environment for the dropped-privilege process
+export HOME=/home/pi
+export SHELL=/bin/bash
+export USER=pi
+export LOGNAME=pi
+
 # Drop privileges and exec the user command
-exec su -l pi -- "$@"
+exec setpriv --reuid=pi --regid=pi --init-groups -- "$@"
