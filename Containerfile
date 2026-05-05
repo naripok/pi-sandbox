@@ -1,7 +1,7 @@
 FROM archlinux:latest
 
 RUN pacman -Syu --noconfirm && \
-    pacman -S --noconfirm nodejs npm git openssh bash fd ripgrep python uv gcc make ast-grep && \
+    pacman -S --noconfirm nodejs npm git openssh bash fd ripgrep python uv gcc make ast-grep rsync shadow && \
     pacman -Scc --noconfirm
 
 # Strip setuid/setgid bits — hardening the image
@@ -11,18 +11,20 @@ RUN npm install -g @mariozechner/pi-coding-agent
 
 RUN useradd -m -u 1000 -s /bin/bash pi
 
-# Store .bashrc outside $HOME — it gets copied at startup since
-# --mount type=tmpfs,destination=/home/pi wipes the image layer.
+# Store .bashrc outside $HOME — it gets copied into the persistent volume at startup.
 RUN mkdir -p /etc/pi
 COPY config/.bashrc /etc/pi/.bashrc
 
-ENV PI_CODING_AGENT_DIR=/pi-data
+# Copy and install entrypoint script.
+# Runs as root to set up the persistent volume, then drops to pi via su.
+COPY config/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod 755 /usr/local/bin/entrypoint.sh
+
 ENV HOME=/home/pi
 ENV TERM=xterm-256color
 ENV COLORTERM=truecolor
 
-USER pi
+USER root
 WORKDIR /workspace
 
-# Copy .bashrc into the writable tmpfs home, then launch bash.
-CMD ["sh", "-c", "cp /etc/pi/.bashrc $HOME/.bashrc && exec /bin/bash --login"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

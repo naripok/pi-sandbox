@@ -15,6 +15,27 @@ def test_containerfile_has_required_directives():
     assert "bash" in content
     assert "@mariozechner/pi-coding-agent" in content
     assert "useradd" in content
-    assert "USER pi" in content
+    assert "USER root" in content
     assert "WORKDIR /workspace" in content
     assert "config/.bashrc" in content
+
+
+def test_containerfile_has_rsync_package():
+    content = (REPO_ROOT / "Containerfile").read_text()
+    assert "rsync" in content, "Missing rsync package for config sync"
+
+
+def test_containerfile_has_shadow_package():
+    content = (REPO_ROOT / "Containerfile").read_text()
+    assert "shadow" in content, "Missing shadow package for su command"
+
+
+def test_containerfile_has_entrypoint():
+    content = (REPO_ROOT / "Containerfile").read_text()
+    assert "entrypoint.sh" in content, "Missing entrypoint.sh reference"
+    assert "ENTRYPOINT" in content, "Missing ENTRYPOINT directive"
+
+
+def test_containerfile_has_user_root():
+    content = (REPO_ROOT / "Containerfile").read_text()
+    assert "USER root" in content, "Missing USER root directive"
