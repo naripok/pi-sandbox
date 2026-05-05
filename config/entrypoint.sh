@@ -12,7 +12,7 @@ DATA_DIR=/home/pi/.pi-agent-data
 # Excludes sessions/ and lock files to avoid overwriting runtime state.
 # Guard: skip if /pi-source is not mounted (e.g. direct podman run).
 if [ -d /pi-source ]; then
-    rsync -au --exclude='sessions/' --exclude='*.lock' /pi-source/. "$DATA_DIR/"
+    rsync -rltDp --no-o --no-g --exclude='sessions/' --exclude='*.lock' /pi-source/. "$DATA_DIR/"
 fi
 
 # Ensure sessions directory exists
@@ -46,6 +46,7 @@ export HOME=/home/pi
 export SHELL=/bin/bash
 export USER=pi
 export LOGNAME=pi
+export PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin"
 
 # Drop privileges and exec the user command
 exec setpriv --reuid=pi --regid=pi --init-groups -- "$@"

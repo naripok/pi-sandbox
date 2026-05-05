@@ -21,7 +21,6 @@ def test_image_builds_successfully(built_image):
 
 # --- Container filesystem layout ---
 
-
 def test_container_has_workspace(built_image):
     result = subprocess.run(
         ["podman", "run", "--rm", built_image, "test", "-d", "/workspace"],
@@ -31,19 +30,19 @@ def test_container_has_workspace(built_image):
     assert result.returncode == 0, "/workspace directory missing"
 
 
-def test_container_has_pi_data_mount(built_image):
+def test_container_has_pi_source_mount(built_image):
     with tempfile.TemporaryDirectory() as tmpdir:
         result = subprocess.run(
             [
                 "podman", "run", "--rm",
-                "-v", f"{tmpdir}:/pi-data:ro",
+                "-v", f"{tmpdir}:/pi-source:ro",
                 built_image,
-                "test", "-d", "/pi-data",
+                "test", "-d", "/pi-source",
             ],
             capture_output=True,
             text=True,
         )
-        assert result.returncode == 0, "/pi-data directory missing or unreadable"
+        assert result.returncode == 0, "/pi-source directory missing or unreadable"
 
 
 def test_container_user_is_pi(built_image):
@@ -66,6 +65,24 @@ def test_pi_coding_agent_is_installed(built_image):
     assert "pi" in result.stdout
 
 
+def test_container_has_rsync(built_image):
+    result = subprocess.run(
+        ["podman", "run", "--rm", built_image, "bash", "-c", "command -v rsync"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, "rsync not found in container"
+
+
+def test_container_has_setpriv(built_image):
+    result = subprocess.run(
+        ["podman", "run", "--rm", built_image, "bash", "-c", "command -v setpriv"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, "setpriv not found in container"
+
+
 # --- End-to-end workflow via run.sh ---
 
 
@@ -76,7 +93,6 @@ def _run_env(tmpdir):
     env["PI_AGENT_CONFIG"] = str(pathlib.Path(tmpdir) / "pi-config")
 
     # Create a fake env file and point run.sh to it via PI_AGENT_ENV_FILE
-    # (we don't override HOME so podman can find its storage with the pre-built image)
     env_file = pathlib.Path(tmpdir) / ".env"
     env_file.write_text("VLLM_API_KEY=\nOPENROUTER_API_KEY=\n")
     env["PI_AGENT_ENV_FILE"] = str(env_file)
@@ -103,6 +119,8 @@ def test_run_script_mounts_current_directory(built_image):
 
 
 def test_global_config_is_readonly_in_container(built_image):
+    """Host config mounted at /pi-source must be read-only inside the container.
+    Writes to /home/pi/.pi-agent-data should succeed (persistent volume)."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir = pathlib.Path(tmpdir)
         config_dir = tmpdir / "pi-config"
@@ -115,7 +133,7 @@ def test_global_config_is_readonly_in_container(built_image):
             [
                 str(REPO_ROOT / "run.sh"),
                 "bash", "-c",
-                "touch /pi-data/should_fail 2>/dev/null; echo $?",
+                "touch /pi-source/should_fail 2>/dev/null; echo $?",
             ],
             capture_output=True,
             text=True,
@@ -128,6 +146,7 @@ def test_global_config_is_readonly_in_container(built_image):
 
 
 def test_sessions_dir_is_writable_in_container(built_image):
+    """Sessions directory at /home/pi/.pi-agent-data/sessions must be writable."""
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir = pathlib.Path(tmpdir)
         config_dir = tmpdir / "pi-config"
@@ -140,7 +159,7 @@ def test_sessions_dir_is_writable_in_container(built_image):
             [
                 str(REPO_ROOT / "run.sh"),
                 "bash", "-c",
-                "touch /pi-data/sessions/test_write && echo ok",
+                "touch /home/pi/.pi-agent-data/sessions/test_write && echo ok",
             ],
             capture_output=True,
             text=True,
