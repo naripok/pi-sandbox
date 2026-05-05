@@ -9,7 +9,10 @@ DATA_DIR=/home/pi/.pi-agent-data
 # Sync host config into persistent volume on every start.
 # Propagates new/modified files while preserving user-generated data.
 # Excludes sessions/ and lock files to avoid overwriting runtime state.
-rsync -au --exclude='sessions/' --exclude='*.lock' /pi-source/. "$DATA_DIR/"
+# Guard: skip if /pi-source is not mounted (e.g. direct podman run).
+if [ -d /pi-source ]; then
+    rsync -au --exclude='sessions/' --exclude='*.lock' /pi-source/. "$DATA_DIR/"
+fi
 
 # Ensure sessions directory exists
 mkdir -p "$DATA_DIR/sessions"
