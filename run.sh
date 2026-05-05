@@ -6,9 +6,26 @@ CONTAINER_NAME="pi-agent-$(basename "$PWD")-${RANDOM}"
 GLOBAL_CONFIG="${PI_AGENT_CONFIG:-${HOME}/.pi/agent}"
 ENV_FILE="${PI_AGENT_ENV_FILE:-${HOME}/.env}"
 
-# Ensure mount sources exist
+# Derive persistent volume name from project path.
+# The basename makes "podman volume ls" output meaningful.
+# The 8-char hash suffix guarantees uniqueness.
+PROJECT_PATH="$(realpath "$(pwd)")"
+PROJECT_NAME="$(basename "$PROJECT_PATH")"
+PERSIST_VOLUME="pi-agent-persist-${PROJECT_NAME}-$(echo "$PROJECT_PATH" | sha256sum | cut -c1-8)"
+
+# Handle --reset flag: remove the persistent volume and exit.
+if [ "${1:-}" = "--reset" ]; then
+    podman volume rm "$PERSIST_VOLUME" 2>/dev/null || true
+    echo "Volume $PERSIST_VOLUME removed."
+    exit 0
+fi
+
+# Ensure mount source exists
 mkdir -p "${GLOBAL_CONFIG}"
-mkdir -p "${GLOBAL_CONFIG}/sessions"
+
+# Create persistent volume (idempotent — no-op if exists).
+# Stores sessions, installed tools, and shell config across runs.
+podman volume create "$PERSIST_VOLUME" >/dev/null
 
 # Build image if it doesn't exist
 if ! podman image exists "$IMAGE_NAME"; then
@@ -53,13 +70,12 @@ exec podman run -i ${TTY_FLAG} --rm \
     --security-opt=no-new-privileges \
     --read-only \
     --tmpfs /tmp \
-    --mount type=tmpfs,destination=/home/pi,chown=true \
     --pids-limit 1024 \
     --memory 8g \
     --cpus 4 \
     -v "$(pwd):/workspace" \
-    -v "${GLOBAL_CONFIG}:/pi-data:ro" \
-    -v "${GLOBAL_CONFIG}/sessions:/pi-data/sessions:rw" \
+    -v "${GLOBAL_CONFIG}:/pi-source:ro" \
+    -v "${PERSIST_VOLUME}:/home/pi:U" \
     "${ENV_ARGS[@]}" \
     "$IMAGE_NAME" \
     "$@"
