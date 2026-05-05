@@ -11,8 +11,10 @@ RUN npm install -g @mariozechner/pi-coding-agent
 
 RUN useradd -m -u 1000 -s /bin/bash pi
 
-COPY config/.bashrc /home/pi/.bashrc
-RUN chown pi:pi /home/pi/.bashrc
+# Store .bashrc outside $HOME — it gets copied at startup since
+# --mount type=tmpfs,destination=/home/pi wipes the image layer.
+RUN mkdir -p /etc/pi
+COPY config/.bashrc /etc/pi/.bashrc
 
 ENV PI_CODING_AGENT_DIR=/pi-data
 ENV HOME=/home/pi
@@ -22,4 +24,5 @@ ENV COLORTERM=truecolor
 USER pi
 WORKDIR /workspace
 
-CMD ["/bin/bash", "--login"]
+# Copy .bashrc into the writable tmpfs home, then launch bash.
+CMD ["sh", "-c", "cp /etc/pi/.bashrc $HOME/.bashrc && exec /bin/bash --login"]

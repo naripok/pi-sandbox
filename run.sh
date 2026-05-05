@@ -53,6 +53,7 @@ exec podman run -i ${TTY_FLAG} --rm \
     --security-opt=no-new-privileges \
     --read-only \
     --tmpfs /tmp \
+    --mount type=tmpfs,destination=/home/pi,chown=true \
     --pids-limit 1024 \
     --memory 8g \
     --cpus 4 \
