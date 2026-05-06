@@ -1,6 +1,6 @@
 [project]
 name = "pi-sandbox"
-version = "1.0.0"
+version = "1.1"
 description = "A userland sandbox for the Pi coding agent"
 readme = "README.md"
 requires-python = ">=3.13"
