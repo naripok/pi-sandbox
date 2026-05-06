@@ -1,6 +1,6 @@
 IMAGE_NAME := pi-agent-isolated
 
-.PHONY: build shell pi clean
+.PHONY: build shell pi clean volumes reset
 
 build:
 	podman build -t $(IMAGE_NAME) .
@@ -13,3 +13,9 @@ pi:
 
 clean:
 	podman rmi $(IMAGE_NAME) || true
+
+volumes:
+	@podman volume ls --filter name=pi-agent-persist- --format '{{.Name}}'
+
+reset:
+	./run.sh --reset
