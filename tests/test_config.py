@@ -34,33 +34,33 @@ def test_bashrc_sets_pi_coding_agent_dir():
     assert 'PI_CODING_AGENT_DIR' in content, "Missing PI_CODING_AGENT_DIR export"
 
 
-# SANDBOX.md
+# APPEND_SYSTEM.md
 
-def test_sandbox_doc_exists():
-    assert (REPO_ROOT / "config" / "SANDBOX.md").exists()
+def test_append_system_doc_exists():
+    assert (REPO_ROOT / "config" / "APPEND_SYSTEM.md").exists()
 
 
-def test_sandbox_doc_describes_filesystem():
-    content = (REPO_ROOT / "config" / "SANDBOX.md").read_text()
+def test_append_system_doc_describes_filesystem():
+    content = (REPO_ROOT / "config" / "APPEND_SYSTEM.md").read_text()
     assert "/workspace" in content
     assert "/home/pi" in content
     assert "/pi-source" in content
 
 
-def test_sandbox_doc_describes_tools():
-    content = (REPO_ROOT / "config" / "SANDBOX.md").read_text()
+def test_append_system_doc_describes_tools():
+    content = (REPO_ROOT / "config" / "APPEND_SYSTEM.md").read_text()
     assert "Node.js" in content
     assert "Python" in content
     assert "git" in content
 
 
-def test_sandbox_doc_lists_pip():
-    content = (REPO_ROOT / "config" / "SANDBOX.md").read_text()
+def test_append_system_doc_lists_pip():
+    content = (REPO_ROOT / "config" / "APPEND_SYSTEM.md").read_text()
     assert "pip" in content
     assert "python-pip" in content
 
 
-def test_sandbox_doc_describes_security():
-    content = (REPO_ROOT / "config" / "SANDBOX.md").read_text()
+def test_append_system_doc_describes_security():
+    content = (REPO_ROOT / "config" / "APPEND_SYSTEM.md").read_text()
     assert "read-only" in content
     assert "capabilities" in content.lower() or "cap-drop" in content

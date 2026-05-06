@@ -18,6 +18,14 @@ fi
 # Ensure sessions directory exists
 mkdir -p "$DATA_DIR/sessions"
 
+# Copy APPEND_SYSTEM.md so pi auto-injects the sandbox environment
+# reference into the system prompt. This file is committed in the repo
+# (config/APPEND_SYSTEM.md) and describes the container's filesystem,
+# tools, security model, network, and resource limits.
+if [ -f /workspace/config/APPEND_SYSTEM.md ]; then
+    cp /workspace/config/APPEND_SYSTEM.md "$DATA_DIR/APPEND_SYSTEM.md"
+fi
+
 # Copy .bashrc on first run only
 if [ ! -f /home/pi/.bashrc ]; then
     cp /etc/pi/.bashrc /home/pi/.bashrc

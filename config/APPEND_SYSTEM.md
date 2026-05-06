@@ -1,4 +1,4 @@
-# SANDBOX.md — Agent Environment Reference
+# Agent Environment Reference
 
 You are running inside a **rootless Podman container** (Arch Linux) providing an isolated development environment. This document describes what you can and cannot do.
 
