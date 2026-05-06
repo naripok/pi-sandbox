@@ -66,6 +66,7 @@ TTY_FLAG=""
 exec podman run -i ${TTY_FLAG} --rm \
     --name "$CONTAINER_NAME" \
     --userns=keep-id \
+    --network=slirp4netns \
     --cap-drop=ALL \
     --security-opt=no-new-privileges \
     --read-only \

@@ -33,6 +33,13 @@ ENV COLORTERM=truecolor
 # With --cap-drop=ALL, root has no capabilities anyway, and :U volume
 # flag needs the container user to be pi for correct ownership.
 USER pi
+
+# Disable npm lifecycle scripts by default — a malicious or hijacked package
+# can run arbitrary code during install, which combined with network access
+# creates a direct exfiltration channel. Users can opt-in with
+# `npm install --ignore-scripts=false`.
+RUN npm config set ignore-scripts true
+
 WORKDIR /workspace
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

@@ -35,6 +35,13 @@ if [ ! -d /home/pi/.local ]; then
     npm config set prefix "/home/pi/.local"
 fi
 
+# Disable npm lifecycle scripts by default. A malicious or hijacked package
+# can run arbitrary code during install, which combined with network access
+# creates a direct exfiltration channel. Users can opt-in with
+# `npm install --ignore-scripts=false`.
+# Set every boot (idempotent — harmless if already true).
+npm config set ignore-scripts true
+
 # Set up environment
 export HOME=/home/pi
 export SHELL=/bin/bash
