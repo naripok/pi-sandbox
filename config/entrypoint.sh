@@ -40,7 +40,12 @@ export HOME=/home/pi
 export SHELL=/bin/bash
 export USER=pi
 export LOGNAME=pi
-export PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin"
+export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin"
+
+# Point pi-coding-agent at the synced config inside the persistent volume.
+# Must be set here (not just in .bashrc) so it is available when the
+# container execs a non-bash command like `pi` directly.
+export PI_CODING_AGENT_DIR="$DATA_DIR"
 
 # Exec the user command
 exec "$@"
