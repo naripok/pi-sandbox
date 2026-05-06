@@ -25,10 +25,6 @@ def test_containerfile_has_rsync_package():
     assert "rsync" in content, "Missing rsync package for config sync"
 
 
-def test_containerfile_has_shadow_package():
-    content = (REPO_ROOT / "Containerfile").read_text()
-    assert "shadow" in content, "Missing shadow package for su command"
-
 
 def test_containerfile_has_entrypoint():
     content = (REPO_ROOT / "Containerfile").read_text()

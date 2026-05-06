@@ -1,7 +1,7 @@
 FROM archlinux:latest
 
 RUN pacman -Syu --noconfirm && \
-    pacman -S --noconfirm nodejs npm git openssh bash fd ripgrep python uv gcc make ast-grep rsync shadow && \
+    pacman -S --noconfirm nodejs npm git openssh bash fd ripgrep python uv gcc make ast-grep rsync && \
     pacman -Scc --noconfirm
 
 # Strip setuid/setgid bits — hardening the image
@@ -21,7 +21,7 @@ RUN mkdir -p /etc/pi
 COPY config/.bashrc /etc/pi/.bashrc
 
 # Copy and install entrypoint script.
-# Runs as root to set up the persistent volume, then drops to pi via su.
+# Runs as pi to sync host config into the persistent volume.
 COPY config/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod 755 /usr/local/bin/entrypoint.sh
 
