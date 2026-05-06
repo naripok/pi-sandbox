@@ -65,9 +65,18 @@ podman volume: pi-agent-persist-myproject-a1b2c3d4
 | `Containerfile`       | Arch Linux image with Node.js, git, pi, rsync, and entrypoint      |
 | `config/entrypoint.sh`| Syncs config, sets up volume, drops privileges to pi user          |
 | `config/.bashrc`      | Shell prompt, aliases, and persistent PATH configuration          |
+| `config/APPEND_SYSTEM.md` | Agent environment reference — auto-injected into the system prompt |
 | `run.sh`              | Launch script — builds image, creates volume, runs container      |
 | `Makefile`            | Convenience targets (`build`, `shell`, `pi`, `clean`, `reset`)    |
 | `tests/`              | Pytest suite covering build, filesystem, persistence, and integration |
+
+## Agent Environment Awareness
+
+The sandboxed agent knows it is in a container — and exactly what it can and cannot do. This is not guessed or inferred; it is explicitly told via system prompt injection.
+
+The entrypoint copies `config/APPEND_SYSTEM.md` into the agent's config directory on every container start. pi automatically includes this file in the system prompt, so every agent session receives a complete description of the sandbox: filesystem layout, installed tools, security boundaries, network configuration, resource limits, persistence behavior, and troubleshooting tips.
+
+The file is committed in the repository and overwritten on every start, so it stays in sync with the actual container configuration. When the Containerfile adds a new tool or `run.sh` changes a flag, `APPEND_SYSTEM.md` is updated to match.
 
 ## Configuration
 
@@ -152,7 +161,7 @@ Integration tests require Podman. Tests are automatically skipped when Podman is
 
 ## See Also
 
-- [SPEC.md](SPEC.md) — Full specification with architecture diagrams, security analysis, and design rationale
+- [docs/SPEC.md](docs/SPEC.md) — Full specification with architecture diagrams, security analysis, and design rationale
 - [Persistent Volume Design](docs/specs/2026-05-05-persistent-volume-design.md) — Design doc for the persistent volume feature
 - [Pi Coding Agent](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent)
 - [Podman Rootless Tutorial](https://github.com/containers/podman/blob/main/docs/tutorials/rootless_tutorial.md)
