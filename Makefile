@@ -2,6 +2,9 @@ IMAGE_NAME := pi-agent-isolated
 
 .PHONY: build shell pi clean volumes reset
 
+install:
+	./install.sh
+
 build:
 	podman build -t $(IMAGE_NAME) .
 

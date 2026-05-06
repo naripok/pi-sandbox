@@ -17,24 +17,18 @@ This project solves all three problems with a simple container-per-project model
 ## Quick Start
 
 ```bash
-# From any project directory
-../pi-sandbox/run.sh                    # interactive shell
-../pi-sandbox/run.sh pi -p "Review code" # run pi directly
-../pi-sandbox/run.sh npm test           # run any command
-
-# Reset persistent state (destroys sessions, installed tools, etc.)
-../pi-sandbox/run.sh --reset
+git clone https://github.com/naripok/pi-sandbox.git ~/pi-sandbox
+cd ~/pi-sandbox && ./install.sh
 ```
 
-Or use the Makefile targets:
+Add the printed alias to your `~/.bashrc` or `~/.zshrc`, then use it from any project:
 
 ```bash
-make shell    # interactive shell in the container
-make pi       # run pi in the container
-make build    # build the container image
-make clean    # remove the image
-make volumes  # list all persistent volumes
-make reset    # reset persistent state for current project
+cd ~/Projects/my-project
+pi-sandbox pi -p "Review this codebase"   # run pi
+pi-sandbox                                # interactive shell
+pi-sandbox npm test                       # any command inside
+pi-sandbox --reset                        # wipe persistent volume
 ```
 
 The first run builds the Arch Linux container image automatically. Subsequent runs start instantly.
@@ -47,7 +41,7 @@ Host filesystem                     Container
 
 ~/Projects/my-project/     ──────►  /workspace       (read-write bind mount)
 ~/.pi/agent/               ──────►  /pi-source       (read-only, host immutable)
-                                     /home/pi         (persistent podman volume, writable)
+                                    /home/pi         (persistent podman volume, writable)
 
 podman volume: pi-agent-persist-myproject-a1b2c3d4
 ```
@@ -60,15 +54,16 @@ podman volume: pi-agent-persist-myproject-a1b2c3d4
 
 ## Architecture
 
-| Component             | Description                                                        |
-| --------------------- | ------------------------------------------------------------------ |
-| `Containerfile`       | Arch Linux image with Node.js, git, pi, rsync, and entrypoint      |
-| `config/entrypoint.sh`| Syncs config, sets up volume, drops privileges to pi user          |
-| `config/.bashrc`      | Shell prompt, aliases, and persistent PATH configuration          |
-| `config/APPEND_SYSTEM.md` | Agent environment reference — auto-injected into the system prompt |
-| `run.sh`              | Launch script — builds image, creates volume, runs container      |
-| `Makefile`            | Convenience targets (`build`, `shell`, `pi`, `clean`, `reset`)    |
-| `tests/`              | Pytest suite covering build, filesystem, persistence, and integration |
+| Component                 | Description                                                           |
+| ------------------------- | --------------------------------------------------------------------- |
+| `Containerfile`           | Arch Linux image with Node.js, git, pi, rsync, and entrypoint         |
+| `config/entrypoint.sh`    | Syncs config, sets up volume, drops privileges to pi user             |
+| `config/.bashrc`          | Shell prompt, aliases, and persistent PATH configuration              |
+| `config/APPEND_SYSTEM.md` | Agent environment reference — auto-injected into the system prompt    |
+| `run.sh`                  | Launch script — builds image, creates volume, runs container          |
+| `install.sh`              | Prerequisite checks, image build, and alias setup for host-wide use   |
+| `Makefile`                | Convenience targets (`build`, `shell`, `pi`, `clean`, `reset`)        |
+| `tests/`                  | Pytest suite covering build, filesystem, persistence, and integration |
 
 ## Agent Environment Awareness
 
@@ -101,36 +96,36 @@ VLLM_API_KEY=...
 
 ### Container Filesystem
 
-| Path                          | Source                     | Permissions |
-| ----------------------------- | -------------------------- | ----------- |
-| `/workspace`                  | Current directory          | Read-write  |
-| `/pi-source`                  | `~/.pi/agent/`            | Read-only   |
-| `/home/pi`                    | Persistent podman volume   | Read-write  |
-| `/home/pi/.pi-agent-data/`    | Synced from `/pi-source/` | Read-write  |
-| `/home/pi/.pi-agent-data/sessions/` | Session history    | Read-write  |
-| `/home/pi/.local/`            | User-level package installs | Read-write |
+| Path                                | Source                      | Permissions |
+| ----------------------------------- | --------------------------- | ----------- |
+| `/workspace`                        | Current directory           | Read-write  |
+| `/pi-source`                        | `~/.pi/agent/`              | Read-only   |
+| `/home/pi`                          | Persistent podman volume    | Read-write  |
+| `/home/pi/.pi-agent-data/`          | Synced from `/pi-source/`   | Read-write  |
+| `/home/pi/.pi-agent-data/sessions/` | Session history             | Read-write  |
+| `/home/pi/.local/`                  | User-level package installs | Read-write  |
 
 ### Config Sync
 
 On every container start, the entrypoint syncs host config into the persistent volume:
 
-| Synced from host               | Preserved in volume           |
-| ------------------------------ | ----------------------------- |
-| New skills in `~/.pi/agent/skills/` | Sessions in `sessions/`  |
-| Updated `AGENTS.md`            | Lock files (`*.lock`)         |
-| New/changed settings files     | Any container-created files   |
+| Synced from host                    | Preserved in volume         |
+| ----------------------------------- | --------------------------- |
+| New skills in `~/.pi/agent/skills/` | Sessions in `sessions/`     |
+| Updated `AGENTS.md`                 | Lock files (`*.lock`)       |
+| New/changed settings files          | Any container-created files |
 
 Files deleted from the host are **not** removed from the volume (to avoid accidentally deleting user data). Use `./run.sh --reset` for a clean slate.
 
 ## Security Model
 
-| Threat                            | Mitigation                                                |
-| --------------------------------- | --------------------------------------------------------- |
-| Agent reads other projects        | Only current directory mounted as `/workspace`           |
-| Agent modifies host config        | Mounted `:ro` at `/pi-source` — writes go to volume only |
-| Agent escapes to host filesystem  | All existing hardening unchanged (`--cap-drop=ALL`, `--read-only`, `--security-opt=no-new-privileges`, user namespaces) |
+| Threat                             | Mitigation                                                                                                                                          |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Agent reads other projects         | Only current directory mounted as `/workspace`                                                                                                      |
+| Agent modifies host config         | Mounted `:ro` at `/pi-source` — writes go to volume only                                                                                            |
+| Agent escapes to host filesystem   | All existing hardening unchanged (`--cap-drop=ALL`, `--read-only`, `--security-opt=no-new-privileges`, user namespaces)                             |
 | Persistent volume as attack vector | Volume is podman-managed, not a host bind mount. No host filesystem access. Intra-project persistence of malicious files is possible but contained. |
-| Volume ownership escalation       | `:U` flag ensures correct ownership; entrypoint also chowns as defense-in-depth |
+| Volume ownership escalation        | `:U` flag ensures correct ownership; entrypoint also chowns as defense-in-depth                                                                     |
 
 ## Reset
 

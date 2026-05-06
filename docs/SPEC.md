@@ -29,15 +29,15 @@ The simplest possible system that satisfies all three requirements (isolation, s
 
 ## 2. Principles
 
-| Principle                        | Implication                                                                                                               |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| **One project, one environment** | Each project runs in an entirely separate filesystem namespace with its own persistent volume.                             |
-| **Explicit visibility**          | The agent sees _only_ directories explicitly mounted into its environment.                                                 |
-| **Read-only global config**      | The agent can use global settings and skills but cannot mutate host config. Changes are synced via rsync on every start.   |
-| **Mutable project workspace**    | The agent can read and write project files, which persist on the host.                                                     |
-| **Persistent per-project state** | Sessions, installed tools, and shell customizations survive across container runs via a podman-managed volume.             |
+| Principle                        | Implication                                                                                                                        |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **One project, one environment** | Each project runs in an entirely separate filesystem namespace with its own persistent volume.                                     |
+| **Explicit visibility**          | The agent sees _only_ directories explicitly mounted into its environment.                                                         |
+| **Read-only global config**      | The agent can use global settings and skills but cannot mutate host config. Changes are synced via rsync on every start.           |
+| **Mutable project workspace**    | The agent can read and write project files, which persist on the host.                                                             |
+| **Persistent per-project state** | Sessions, installed tools, and shell customizations survive across container runs via a podman-managed volume.                     |
 | **No root privileges**           | The container runtime is rootless. All capabilities are dropped. Even a complete container escape yields unprivileged permissions. |
-| **Transparent to the user**      | Pair-coding works naturally: host editor and container agent see the same files simultaneously.                            |
+| **Transparent to the user**      | Pair-coding works naturally: host editor and container agent see the same files simultaneously.                                    |
 
 ---
 
@@ -49,29 +49,29 @@ The simplest possible system that satisfies all three requirements (isolation, s
 ┌─────────────────────────────────────────────────────────────────┐
 │                      HOST (Arch Linux)                          │
 │                                                                 │
-│  ┌──────────────────┐  ┌──────────────────┐                    │
-│  │ ~/.pi/agent/     │  │ ~/Projects/      │                    │
-│  │ (global config)  │  │                  │                    │
-│  └────────┬─────────┘  │  ├─ project-a/   │                    │
-│           │            │  ├─ project-b/   │                    │
-│           │            │  └─ project-c/   │                    │
-│           │            └──────────────────┘                    │
+│  ┌──────────────────┐  ┌──────────────────┐                     │
+│  │ ~/.pi/agent/     │  │ ~/Projects/      │                     │
+│  │ (global config)  │  │                  │                     │
+│  └────────┬─────────┘  │  ├─ project-a/   │                     │
+│           │            │  ├─ project-b/   │                     │
+│           │            │  └─ project-c/   │                     │
+│           │            └──────────────────┘                     │
 │           │                                                     │
-│  ┌────────▼──────────────────────────────────────┐             │
-│  │  Container A (project-a)                       │             │
-│  │  /pi-source → ~/.pi/agent (ro)                │             │
-│  │  /workspace → project-a (rw)                  │             │
-│  │  /home/pi → podman volume (rw, persistent)    │             │
-│  │  [no access to project-b]                     │             │
-│  └───────────────────────────────────────────────┘             │
+│  ┌────────▼──────────────────────────────────────┐              │
+│  │  Container A (project-a)                      │              │
+│  │  /pi-source → ~/.pi/agent (ro)                │              │
+│  │  /workspace → project-a (rw)                  │              │
+│  │  /home/pi → podman volume (rw, persistent)    │              │
+│  │  [no access to project-b]                     │              │
+│  └───────────────────────────────────────────────┘              │
 │                                                                 │
-│  ┌───────────────────────────────────────────────┐             │
-│  │  Container B (project-b)                       │             │
-│  │  /pi-source → ~/.pi/agent (ro)                │             │
-│  │  /workspace → project-b (rw)                  │             │
-│  │  /home/pi → podman volume (rw, persistent)    │             │
-│  │  [no access to project-a]                     │             │
-│  └───────────────────────────────────────────────┘             │
+│  ┌───────────────────────────────────────────────┐              │
+│  │  Container B (project-b)                      │              │
+│  │  /pi-source → ~/.pi/agent (ro)                │              │
+│  │  /workspace → project-b (rw)                  │              │
+│  │  /home/pi → podman volume (rw, persistent)    │              │
+│  │  [no access to project-a]                     │              │
+│  └───────────────────────────────────────────────┘              │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -79,16 +79,16 @@ The simplest possible system that satisfies all three requirements (isolation, s
 
 Inside any container:
 
-| Path                                  | Source                    | Permissions | Contents                                          |
-| ------------------------------------- | ------------------------- | ----------- | ------------------------------------------------- |
-| `/workspace`                          | `~/Projects/<project>/`  | read-write  | Entire project directory (bind mount from host)    |
-| `/pi-source`                          | `~/.pi/agent/`           | read-only   | Host's global pi config (skills, settings, etc.)  |
-| `/home/pi`                            | Persistent podman volume  | read-write  | Persistent per-project state                      |
-| `/home/pi/.pi-agent-data/`            | Synced from `/pi-source`  | read-write  | Agent config, sessions, lock files                |
-| `/home/pi/.pi-agent-data/sessions/`   | Persistent volume         | read-write  | Session history (survives across runs)            |
-| `/home/pi/.local/`                    | Persistent volume         | read-write  | User-level package installs (npm, pip, uv)        |
-| `/tmp`                                | tmpfs                     | read-write  | Ephemeral scratch space (lost on exit)            |
-| `/` (rootfs)                          | Arch Linux image          | read-only   | Base system (cannot be modified)                  |
+| Path                                | Source                   | Permissions | Contents                                         |
+| ----------------------------------- | ------------------------ | ----------- | ------------------------------------------------ |
+| `/workspace`                        | `~/Projects/<project>/`  | read-write  | Entire project directory (bind mount from host)  |
+| `/pi-source`                        | `~/.pi/agent/`           | read-only   | Host's global pi config (skills, settings, etc.) |
+| `/home/pi`                          | Persistent podman volume | read-write  | Persistent per-project state                     |
+| `/home/pi/.pi-agent-data/`          | Synced from `/pi-source` | read-write  | Agent config, sessions, lock files               |
+| `/home/pi/.pi-agent-data/sessions/` | Persistent volume        | read-write  | Session history (survives across runs)           |
+| `/home/pi/.local/`                  | Persistent volume        | read-write  | User-level package installs (npm, pip, uv)       |
+| `/tmp`                              | tmpfs                    | read-write  | Ephemeral scratch space (lost on exit)           |
+| `/` (rootfs)                        | Arch Linux image         | read-only   | Base system (cannot be modified)                 |
 
 The agent **cannot** see:
 
@@ -101,19 +101,19 @@ The agent **cannot** see:
 
 ### 3.3 What the Agent Can Do
 
-| Action                                       | Allowed?   | Notes                                                                 |
-| -------------------------------------------- | ---------- | --------------------------------------------------------------------- |
-| Read/write project source                    | ✅ Yes     | Persisted on host immediately via bind mount                          |
-| Install project dependencies (`npm install`) | ✅ Yes     | Within `/workspace` only                                              |
-| Create project-local skills                  | ✅ Yes     | Written to `.pi/skills/` inside project                               |
-| Modify project settings                      | ✅ Yes     | Written to `.pi/settings.json` inside project                         |
-| Read global skills/settings                  | ✅ Yes     | Via read-only `/pi-source` mount                                      |
-| Modify host global config                    | ❌ No      | `/pi-source` is mounted read-only                                     |
-| Access other projects                        | ❌ No      | Not mounted, does not exist in container                              |
-| Access host SSH keys                         | ❌ No      | Not mounted                                                           |
-| Modify system files                          | ❌ No      | Root filesystem is read-only (`--read-only`)                          |
-| Escalate privileges                          | ❌ No      | `--cap-drop=ALL`, `--security-opt=no-new-privileges`, rootless        |
-| Install global tools                         | ✅ Yes     | To `~/.local/` via npm/pip/uv — persists in volume                    |
+| Action                                       | Allowed?   | Notes                                                                                |
+| -------------------------------------------- | ---------- | ------------------------------------------------------------------------------------ |
+| Read/write project source                    | ✅ Yes     | Persisted on host immediately via bind mount                                         |
+| Install project dependencies (`npm install`) | ✅ Yes     | Within `/workspace` only                                                             |
+| Create project-local skills                  | ✅ Yes     | Written to `.pi/skills/` inside project                                              |
+| Modify project settings                      | ✅ Yes     | Written to `.pi/settings.json` inside project                                        |
+| Read global skills/settings                  | ✅ Yes     | Via read-only `/pi-source` mount                                                     |
+| Modify host global config                    | ❌ No      | `/pi-source` is mounted read-only                                                    |
+| Access other projects                        | ❌ No      | Not mounted, does not exist in container                                             |
+| Access host SSH keys                         | ❌ No      | Not mounted                                                                          |
+| Modify system files                          | ❌ No      | Root filesystem is read-only (`--read-only`)                                         |
+| Escalate privileges                          | ❌ No      | `--cap-drop=ALL`, `--security-opt=no-new-privileges`, rootless                       |
+| Install global tools                         | ✅ Yes     | To `~/.local/` via npm/pip/uv — persists in volume                                   |
 | Exfiltrate data over network                 | ⚠️ Partial | Can make outbound requests (slirp4netns), but only has access to this project's data |
 
 ---
@@ -263,11 +263,11 @@ ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 ### 6.2 Installed Tools
 
-| Category      | Tools                                                                 |
-| --------------| --------------------------------------------------------------------- |
-| Languages     | Node.js, npm, Python, pip, uv                                         |
-| System        | bash, git, gcc, make, rsync, fd, ripgrep, ast-grep, openssh           |
-| Agent         | pi-coding-agent                                                       |
+| Category  | Tools                                                       |
+| --------- | ----------------------------------------------------------- |
+| Languages | Node.js, npm, Python, pip, uv                               |
+| System    | bash, git, gcc, make, rsync, fd, ripgrep, ast-grep, openssh |
+| Agent     | pi-coding-agent                                             |
 
 ### 6.3 Hardening
 
@@ -295,15 +295,15 @@ The entrypoint runs as the `pi` user (set by `USER pi` in the Containerfile). It
 
 ### 7.1 Responsibilities
 
-| Step | Action | Frequency |
-|------|--------|-----------|
-| 1 | Sync host config via rsync | Every start |
-| 2 | Copy `APPEND_SYSTEM.md` to data dir | Every start (overwrites) |
-| 3 | Copy `.bashrc` from image | First run only |
-| 4 | Create `.bash_profile` | First run only |
-| 5 | Configure package manager paths | First run only |
-| 6 | Set `PI_CODING_AGENT_DIR` environment variable | Every start |
-| 7 | `exec "$@"` — run the user command | Every start |
+| Step | Action                                         | Frequency                |
+| ---- | ---------------------------------------------- | ------------------------ |
+| 1    | Sync host config via rsync                     | Every start              |
+| 2    | Copy `APPEND_SYSTEM.md` to data dir            | Every start (overwrites) |
+| 3    | Copy `.bashrc` from image                      | First run only           |
+| 4    | Create `.bash_profile`                         | First run only           |
+| 5    | Configure package manager paths                | First run only           |
+| 6    | Set `PI_CODING_AGENT_DIR` environment variable | Every start              |
+| 7    | `exec "$@"` — run the user command             | Every start              |
 
 ### 7.2 Config Sync
 
@@ -315,11 +315,11 @@ rsync -rltDp --no-o --no-g --exclude='sessions/' --exclude='*.lock' /pi-source/.
 
 This propagates new and modified config files from the host into the persistent volume, while preserving user-generated data:
 
-| Synced from host (`/pi-source`) | Preserved in volume                         |
-| -------------------------------- | ------------------------------------------- |
-| New skills in `skills/`          | Sessions in `sessions/`                     |
-| Updated `AGENTS.md`              | Lock files (`*.lock`)                       |
-| New/changed settings files       | Any container-created files                 |
+| Synced from host (`/pi-source`) | Preserved in volume         |
+| ------------------------------- | --------------------------- |
+| New skills in `skills/`         | Sessions in `sessions/`     |
+| Updated `AGENTS.md`             | Lock files (`*.lock`)       |
+| New/changed settings files      | Any container-created files |
 
 **Not handled:** Files deleted from the host are not removed from the volume. This avoids accidentally deleting user data. Use `./run.sh --reset` for a clean slate.
 
@@ -380,33 +380,33 @@ The random suffix prevents name collisions when running multiple containers for 
 
 ### 8.4 Key Flags
 
-| Flag                              | Purpose                                                                              |
-| --------------------------------- | ------------------------------------------------------------------------------------ |
-| `--rm`                            | Container is deleted when exited. No stale state.                                    |
-| `--userns=keep-id`                | Maps container UID to host UID. Files written by the agent appear owned by you.      |
-| `--network=slirp4netns`           | Separate network namespace with outbound access. Not reachable from host.            |
-| `--cap-drop=ALL`                  | Drop all Linux capabilities. No privilege escalation possible.                       |
-| `--security-opt=no-new-privileges`| Kernel enforces NoNewPrivs. `setuid`/`setgid` calls fail.                           |
-| `--read-only`                     | Root filesystem is read-only. Only writable paths are explicit mounts.               |
-| `--tmpfs /tmp`                    | Ephemeral tmpfs for temporary files. Lost on exit.                                   |
-| `--pids-limit 1024`               | Maximum 1024 processes. Prevents fork bombs.                                         |
-| `--memory 8g`                     | Memory limit.                                                                        |
-| `--cpus 4`                        | CPU limit.                                                                           |
-| `-v $(pwd):/workspace`            | The current project directory, read-write.                                           |
-| `-v ~/.pi/agent:/pi-source:ro`    | Global pi config, read-only.                                                         |
-| `-v ${PERSIST_VOLUME}:/home/pi:U` | Persistent podman volume, writable. `:U` ensures correct ownership.                  |
-| `-i` (always)                     | Keep stdin open.                                                                     |
-| `-t` (conditional)                | Allocate TTY only when stdin is a terminal.                                          |
-| `~/.env` → `-e <var>`            | All variables from `~/.env` are forwarded to the container.                          |
+| Flag                               | Purpose                                                                         |
+| ---------------------------------- | ------------------------------------------------------------------------------- |
+| `--rm`                             | Container is deleted when exited. No stale state.                               |
+| `--userns=keep-id`                 | Maps container UID to host UID. Files written by the agent appear owned by you. |
+| `--network=slirp4netns`            | Separate network namespace with outbound access. Not reachable from host.       |
+| `--cap-drop=ALL`                   | Drop all Linux capabilities. No privilege escalation possible.                  |
+| `--security-opt=no-new-privileges` | Kernel enforces NoNewPrivs. `setuid`/`setgid` calls fail.                       |
+| `--read-only`                      | Root filesystem is read-only. Only writable paths are explicit mounts.          |
+| `--tmpfs /tmp`                     | Ephemeral tmpfs for temporary files. Lost on exit.                              |
+| `--pids-limit 1024`                | Maximum 1024 processes. Prevents fork bombs.                                    |
+| `--memory 8g`                      | Memory limit.                                                                   |
+| `--cpus 4`                         | CPU limit.                                                                      |
+| `-v $(pwd):/workspace`             | The current project directory, read-write.                                      |
+| `-v ~/.pi/agent:/pi-source:ro`     | Global pi config, read-only.                                                    |
+| `-v ${PERSIST_VOLUME}:/home/pi:U`  | Persistent podman volume, writable. `:U` ensures correct ownership.             |
+| `-i` (always)                      | Keep stdin open.                                                                |
+| `-t` (conditional)                 | Allocate TTY only when stdin is a terminal.                                     |
+| `~/.env` → `-e <var>`              | All variables from `~/.env` are forwarded to the container.                     |
 
 ### 8.5 Configuration
 
 All settings are controlled via environment variables:
 
-| Variable            | Default             | Description                              |
-| ------------------- | ------------------- | ---------------------------------------- |
-| `PI_AGENT_IMAGE`    | `pi-agent-isolated` | Container image name                     |
-| `PI_AGENT_CONFIG`   | `~/.pi/agent`       | Path to global pi config directory       |
+| Variable            | Default             | Description                                |
+| ------------------- | ------------------- | ------------------------------------------ |
+| `PI_AGENT_IMAGE`    | `pi-agent-isolated` | Container image name                       |
+| `PI_AGENT_CONFIG`   | `~/.pi/agent`       | Path to global pi config directory         |
 | `PI_AGENT_ENV_FILE` | `~/.env`            | Env file to forward variables to container |
 
 ### 8.6 Usage
@@ -450,6 +450,7 @@ cd ~/Projects/my-project
 ### 9.4 Threat: Privilege Escalation
 
 **Mitigation:** Multiple layers:
+
 - `--cap-drop=ALL` — all Linux capabilities dropped
 - `--security-opt=no-new-privileges` — kernel enforces NoNewPrivs
 - Setuid/setgid bits stripped from the image
@@ -476,24 +477,24 @@ cd ~/Projects/my-project
 **Mitigation:** Resource limits prevent runaway processes:
 
 | Resource | Limit   | Flag                |
-|----------|---------|---------------------|
+| -------- | ------- | ------------------- |
 | CPU      | 4 cores | `--cpus 4`          |
 | Memory   | 8 GB    | `--memory 8g`       |
 | PIDs     | 1024    | `--pids-limit 1024` |
 
 ### 9.9 Summary
 
-| Threat                          | Mitigation                                                                 |
-|---------------------------------|----------------------------------------------------------------------------|
-| Reading other projects          | Only `/workspace` is mounted                                               |
-| Modifying host config           | `/pi-source` is read-only                                                  |
-| Modifying system files          | Root filesystem is read-only                                               |
-| Privilege escalation            | `--cap-drop=ALL`, `--security-opt=no-new-privileges`                       |
-| setuid exploits                 | All setuid bits stripped from the image                                    |
-| Host process visibility         | Separate PID namespace                                                     |
-| Container runtime escape        | `--cap-drop=ALL` + rootless (user namespaces)                              |
-| Malicious npm scripts           | `ignore-scripts=true` by default                                           |
-| Fork bomb / resource exhaustion | `--pids-limit 1024`, `--memory 8g`, `--cpus 4`                             |
+| Threat                          | Mitigation                                           |
+| ------------------------------- | ---------------------------------------------------- |
+| Reading other projects          | Only `/workspace` is mounted                         |
+| Modifying host config           | `/pi-source` is read-only                            |
+| Modifying system files          | Root filesystem is read-only                         |
+| Privilege escalation            | `--cap-drop=ALL`, `--security-opt=no-new-privileges` |
+| setuid exploits                 | All setuid bits stripped from the image              |
+| Host process visibility         | Separate PID namespace                               |
+| Container runtime escape        | `--cap-drop=ALL` + rootless (user namespaces)        |
+| Malicious npm scripts           | `ignore-scripts=true` by default                     |
+| Fork bomb / resource exhaustion | `--pids-limit 1024`, `--memory 8g`, `--cpus 4`       |
 
 ---
 
@@ -588,14 +589,14 @@ podman run --rm -v "$(pwd):/workspace" pi-agent-isolated ls -la /
 
 The test suite is organized as follows:
 
-| Test File               | Scope                                                          |
-| ----------------------- | -------------------------------------------------------------- |
-| `tests/test_config.py`  | Config file existence and content validation                   |
-| `tests/test_containerfile.py` | Containerfile directive assertions                      |
-| `tests/test_run.py`     | `run.sh` flag generation, volume naming, env var forwarding    |
-| `tests/test_makefile.py` | Makefile target validation                                    |
-| `tests/test_integration.py` | Image build, filesystem layout, mounts, config sync, persistence, volume isolation |
-| `tests/test_security.py` | Read-only rootfs, dropped capabilities, no-new-privileges, socket access |
+| Test File                     | Scope                                                                              |
+| ----------------------------- | ---------------------------------------------------------------------------------- |
+| `tests/test_config.py`        | Config file existence and content validation                                       |
+| `tests/test_containerfile.py` | Containerfile directive assertions                                                 |
+| `tests/test_run.py`           | `run.sh` flag generation, volume naming, env var forwarding                        |
+| `tests/test_makefile.py`      | Makefile target validation                                                         |
+| `tests/test_integration.py`   | Image build, filesystem layout, mounts, config sync, persistence, volume isolation |
+| `tests/test_security.py`      | Read-only rootfs, dropped capabilities, no-new-privileges, socket access           |
 
 Integration and security tests require Podman and are automatically skipped when Podman is not available.
 
@@ -617,9 +618,9 @@ pytest tests/
 
 ### Implemented
 
-| Feature | Description |
-| ------- | ----------- |
-| FE-001 | Env file forwarding via `~/.env` — variables in `~/.env` are auto-forwarded to the container; override with `PI_AGENT_ENV_FILE` |
+| Feature | Description                                                                                                                     |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| FE-001  | Env file forwarding via `~/.env` — variables in `~/.env` are auto-forwarded to the container; override with `PI_AGENT_ENV_FILE` |
 
 ---
 
@@ -636,7 +637,7 @@ pytest tests/
 | tmpfs              | A temporary filesystem stored in RAM, lost when the mount is removed                       |
 | User namespace     | A Linux kernel feature that maps container UIDs to different host UIDs                     |
 | OCI                | Open Container Initiative, the standard format for container images                        |
-| NoNewPrivs         | A Linux security flag that prevents a process from gaining new privileges                   |
+| NoNewPrivs         | A Linux security flag that prevents a process from gaining new privileges                  |
 
 ---
 
