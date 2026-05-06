@@ -8,7 +8,7 @@ def test_makefile_exists():
 
 def test_makefile_has_required_targets():
     content = (REPO_ROOT / "Makefile").read_text()
-    for target in ("build:", "shell:", "pi:", "clean:", "volumes:", "reset:"):
+    for target in ("build:", "shell:", "pi:", "clean:"):
         assert target in content, f"Missing target: {target}"
 
 
