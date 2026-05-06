@@ -168,3 +168,172 @@ def test_sessions_dir_is_writable_in_container(built_image):
         )
         assert result.returncode == 0, result.stderr
         assert "ok" in result.stdout
+
+
+# --- Persistent volume tests ---
+
+
+def test_persistence_across_runs(built_image):
+    """Files written inside the container persist across separate run.sh invocations.
+    Cleaned up with --reset."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = pathlib.Path(tmpdir)
+        config_dir = tmpdir / "pi-config"
+        config_dir.mkdir()
+
+        env = _run_env(tmpdir)
+
+        try:
+            # First run: write a marker file
+            result = subprocess.run(
+                [
+                    str(REPO_ROOT / "run.sh"),
+                    "bash", "-c",
+                    "mkdir -p /home/pi/.local && echo persisted > /home/pi/.local/marker.txt",
+                ],
+                capture_output=True,
+                text=True,
+                env=env,
+                cwd=str(tmpdir),
+            )
+            assert result.returncode == 0, result.stderr
+
+            # Second run: verify the marker file persists
+            result = subprocess.run(
+                [
+                    str(REPO_ROOT / "run.sh"),
+                    "cat", "/home/pi/.local/marker.txt",
+                ],
+                capture_output=True,
+                text=True,
+                env=env,
+                cwd=str(tmpdir),
+            )
+            assert result.returncode == 0, result.stderr
+            assert result.stdout.strip() == "persisted"
+        finally:
+            subprocess.run(
+                [str(REPO_ROOT / "run.sh"), "--reset"],
+                capture_output=True,
+                text=True,
+                env=env,
+                cwd=str(tmpdir),
+            )
+
+
+def test_volume_isolation(built_image):
+    """Two separate project directories get isolated persistent volumes.
+    Data written in project A's volume is not visible from project B."""
+    with tempfile.TemporaryDirectory() as tmpdir_a, tempfile.TemporaryDirectory() as tmpdir_b:
+        tmpdir_a = pathlib.Path(tmpdir_a)
+        tmpdir_b = pathlib.Path(tmpdir_b)
+
+        (tmpdir_a / "pi-config").mkdir()
+        (tmpdir_b / "pi-config").mkdir()
+
+        env_a = _run_env(tmpdir_a)
+        env_b = _run_env(tmpdir_b)
+
+        try:
+            # Write data in project A's volume
+            result = subprocess.run(
+                [
+                    str(REPO_ROOT / "run.sh"),
+                    "bash", "-c",
+                    "echo project-a-data > /home/pi/.local/project_id.txt",
+                ],
+                capture_output=True,
+                text=True,
+                env=env_a,
+                cwd=str(tmpdir_a),
+            )
+            assert result.returncode == 0, result.stderr
+
+            # Verify project B cannot see project A's data
+            result = subprocess.run(
+                [
+                    str(REPO_ROOT / "run.sh"),
+                    "bash", "-c",
+                    "cat /home/pi/.local/project_id.txt 2>/dev/null; echo exit=$?",
+                ],
+                capture_output=True,
+                text=True,
+                env=env_b,
+                cwd=str(tmpdir_b),
+            )
+            assert result.returncode == 0, result.stderr
+            assert "project-a-data" not in result.stdout
+        finally:
+            subprocess.run(
+                [str(REPO_ROOT / "run.sh"), "--reset"],
+                capture_output=True,
+                text=True,
+                env=env_a,
+                cwd=str(tmpdir_a),
+            )
+            subprocess.run(
+                [str(REPO_ROOT / "run.sh"), "--reset"],
+                capture_output=True,
+                text=True,
+                env=env_b,
+                cwd=str(tmpdir_b),
+            )
+
+
+def test_config_sync(built_image):
+    """Host config changes (new skill file) are synced into the container on next run,
+    while session data written to the volume is preserved."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = pathlib.Path(tmpdir)
+        config_dir = tmpdir / "pi-config"
+        config_dir.mkdir()
+
+        # Initial config: one skill file
+        skills_dir = config_dir / "skills"
+        skills_dir.mkdir()
+        (skills_dir / "old-skill.md").write_text("# Old Skill")
+
+        env = _run_env(tmpdir)
+
+        try:
+            # First run: create a session file in the volume
+            result = subprocess.run(
+                [
+                    str(REPO_ROOT / "run.sh"),
+                    "bash", "-c",
+                    "mkdir -p /home/pi/.pi-agent-data/sessions && echo session-data > /home/pi/.pi-agent-data/sessions/test-session.json",
+                ],
+                capture_output=True,
+                text=True,
+                env=env,
+                cwd=str(tmpdir),
+            )
+            assert result.returncode == 0, result.stderr
+
+            # Modify host config: add a new skill file
+            (skills_dir / "new-skill.md").write_text("# New Skill")
+
+            # Second run: verify new skill is synced AND session is preserved
+            result = subprocess.run(
+                [
+                    str(REPO_ROOT / "run.sh"),
+                    "bash", "-c",
+                    "cat /home/pi/.pi-agent-data/skills/new-skill.md && "
+                    "cat /home/pi/.pi-agent-data/sessions/test-session.json",
+                ],
+                capture_output=True,
+                text=True,
+                env=env,
+                cwd=str(tmpdir),
+            )
+            assert result.returncode == 0, result.stderr
+            assert "# New Skill" in result.stdout, "New skill was not synced"
+            assert "session-data" in result.stdout, "Session data was not preserved"
+        finally:
+            subprocess.run(
+                [str(REPO_ROOT / "run.sh"), "--reset"],
+                capture_output=True,
+                text=True,
+                env=env,
+                cwd=str(tmpdir),
+            )
