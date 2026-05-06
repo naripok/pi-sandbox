@@ -26,7 +26,7 @@ Add the printed alias to your `~/.bashrc` or `~/.zshrc`, then use it from any pr
 ```bash
 cd ~/Projects/my-project
 pi-sandbox pi -p "Review this codebase"   # run pi
-pi-sandbox                                # interactive shell
+pi-sandbox bash                           # interactive shell
 pi-sandbox npm test                       # any command inside
 pi-sandbox --reset                        # wipe persistent volume
 ```
@@ -93,6 +93,17 @@ Example `~/.env`:
 OPENROUTER_API_KEY=sk-or-...
 VLLM_API_KEY=...
 ```
+
+### Sandbox Environment Variables
+
+In addition to forwarded host variables, the entrypoint injects two sandbox-specific environment variables on every container start:
+
+| Variable       | Description                                                           |
+| -------------- | --------------------------------------------------------------------- |
+| `PI_OFFLINE`   | Disables all outbound network calls from the pi agent                 |
+| `PI_TELEMETRY` | Prevents the agent from sending usage or telemetry data to any server |
+
+These ensure the sandboxed agent never leaks data outside the container, regardless of what the host `~/.env` contains. They are set in `config/entrypoint.sh` alongside other persistent sandbox defaults.
 
 ### Container Filesystem
 

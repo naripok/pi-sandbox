@@ -9,7 +9,7 @@ build:
 	podman build -t $(IMAGE_NAME) .
 
 shell:
-	./run.sh
+	./run.sh bash
 
 pi:
 	./run.sh pi
