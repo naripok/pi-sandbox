@@ -11,6 +11,11 @@ RUN npm install -g @mariozechner/pi-coding-agent
 
 RUN useradd -m -u 1000 -s /bin/bash pi
 
+# Clean up root-owned npm artifacts from /home/pi/ that would cause
+# EACCES when running as pi. (npm may have created ~/.npm cache during
+# the global install above with HOME=/home/pi from a later ENV directive.)
+RUN rm -rf /home/pi/.npm /home/pi/.npmrc
+
 # Store .bashrc outside $HOME — it gets copied into the persistent volume at startup.
 RUN mkdir -p /etc/pi
 COPY config/.bashrc /etc/pi/.bashrc
@@ -24,7 +29,10 @@ ENV HOME=/home/pi
 ENV TERM=xterm-256color
 ENV COLORTERM=truecolor
 
-USER root
+# Run as pi user. The entrypoint handles volume setup without root.
+# With --cap-drop=ALL, root has no capabilities anyway, and :U volume
+# flag needs the container user to be pi for correct ownership.
+USER pi
 WORKDIR /workspace
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

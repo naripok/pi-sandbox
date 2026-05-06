@@ -15,7 +15,7 @@ def test_containerfile_has_required_directives():
     assert "bash" in content
     assert "@mariozechner/pi-coding-agent" in content
     assert "useradd" in content
-    assert "USER root" in content
+    assert "USER pi" in content
     assert "WORKDIR /workspace" in content
     assert "config/.bashrc" in content
 
@@ -36,6 +36,6 @@ def test_containerfile_has_entrypoint():
     assert "ENTRYPOINT" in content, "Missing ENTRYPOINT directive"
 
 
-def test_containerfile_has_user_root():
+def test_containerfile_has_user_pi():
     content = (REPO_ROOT / "Containerfile").read_text()
-    assert "USER root" in content, "Missing USER root directive"
+    assert "USER pi" in content, "Missing USER pi directive"

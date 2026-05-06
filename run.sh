@@ -25,7 +25,7 @@ mkdir -p "${GLOBAL_CONFIG}"
 
 # Create persistent volume (idempotent — no-op if exists).
 # Stores sessions, installed tools, and shell config across runs.
-podman volume create "$PERSIST_VOLUME" >/dev/null
+podman volume create "$PERSIST_VOLUME" >/dev/null 2>&1 || true
 
 # Build image if it doesn't exist
 if ! podman image exists "$IMAGE_NAME"; then
