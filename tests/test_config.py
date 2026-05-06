@@ -32,3 +32,35 @@ def test_bashrc_sets_npm_config_prefix():
 def test_bashrc_sets_pi_coding_agent_dir():
     content = (REPO_ROOT / "config" / ".bashrc").read_text()
     assert 'PI_CODING_AGENT_DIR' in content, "Missing PI_CODING_AGENT_DIR export"
+
+
+# SANDBOX.md
+
+def test_sandbox_doc_exists():
+    assert (REPO_ROOT / "config" / "SANDBOX.md").exists()
+
+
+def test_sandbox_doc_describes_filesystem():
+    content = (REPO_ROOT / "config" / "SANDBOX.md").read_text()
+    assert "/workspace" in content
+    assert "/home/pi" in content
+    assert "/pi-source" in content
+
+
+def test_sandbox_doc_describes_tools():
+    content = (REPO_ROOT / "config" / "SANDBOX.md").read_text()
+    assert "Node.js" in content
+    assert "Python" in content
+    assert "git" in content
+
+
+def test_sandbox_doc_lists_pip():
+    content = (REPO_ROOT / "config" / "SANDBOX.md").read_text()
+    assert "pip" in content
+    assert "python-pip" in content
+
+
+def test_sandbox_doc_describes_security():
+    content = (REPO_ROOT / "config" / "SANDBOX.md").read_text()
+    assert "read-only" in content
+    assert "capabilities" in content.lower() or "cap-drop" in content

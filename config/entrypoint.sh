@@ -48,6 +48,8 @@ export SHELL=/bin/bash
 export USER=pi
 export LOGNAME=pi
 export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin"
+export PYTHONUSERBASE="$HOME/.local"
+export NPM_CONFIG_PREFIX="$HOME/.local"
 
 # Point pi-coding-agent at the synced config inside the persistent volume.
 # Must be set here (not just in .bashrc) so it is available when the
