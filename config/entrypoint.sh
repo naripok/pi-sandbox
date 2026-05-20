@@ -64,8 +64,7 @@ export NPM_CONFIG_PREFIX="$HOME/.local"
 # container execs a non-bash command like `pi` directly.
 export PI_CODING_AGENT_DIR="$DATA_DIR"
 
-# Disable network calls and telemetry for the sandbox agent.
-export PI_OFFLINE=1
+# Disable telemetry for the sandbox agent.
 export PI_TELEMETRY=0
 
 # Exec the user command
