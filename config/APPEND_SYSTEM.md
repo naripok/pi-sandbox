@@ -6,19 +6,20 @@ You are running inside a **rootless Podman container** (Arch Linux) providing an
 
 ## Filesystem Layout
 
-| Path                | Access    | Description                                          |
-|---------------------|-----------|------------------------------------------------------|
-| `/workspace`        | Read-write| The project directory (bind-mounted from host). Your working directory. |
-| `/home/pi`          | Read-write| Persistent volume — survives across container runs. Use for installed tools, sessions, config. |
-| `/home/pi/.local/`  | Read-write| User-level package installs (`npm`, `pip`, `uv`). |
-| `/home/pi/.pi-agent-data/` | Read-write | Agent config, synced from host. Contains `sessions/`, skills, and this file. |
-| `/pi-source`        | Read-only | Host's `~/.pi/agent/` — global skills and settings. You can read but not modify. |
-| `/tmp`              | Read-write| Ephemeral tmpfs. Lost when container exits. |
-| `/` (rootfs)        | Read-only | The Arch Linux base image. You cannot write to `/usr`, `/etc`, `/bin`, etc. |
+| Path                       | Access     | Description                                                                                    |
+| -------------------------- | ---------- | ---------------------------------------------------------------------------------------------- |
+| `/workspace`               | Read-write | The project directory (bind-mounted from host). Your working directory.                        |
+| `/home/pi`                 | Read-write | Persistent volume — survives across container runs. Use for installed tools, sessions, config. |
+| `/home/pi/.local/`         | Read-write | User-level package installs (`npm`, `pip`, `uv`).                                              |
+| `/home/pi/.pi-agent-data/` | Read-write | Agent config, synced from host. Contains `sessions/`, skills, and this file.                   |
+| `/pi-source`               | Read-only  | Host's `~/.pi/agent/` — global skills and settings. You can read but not modify.               |
+| `/tmp`                     | Read-write | Ephemeral tmpfs. Lost when container exits.                                                    |
+| `/` (rootfs)               | Read-only  | The Arch Linux base image. You cannot write to `/usr`, `/etc`, `/bin`, etc.                    |
 
 ### What Does NOT Exist
 
 You **cannot** access:
+
 - Other project directories — only `/workspace` is mounted
 - Host SSH keys, dotfiles, or system config
 - Host home directory
@@ -40,43 +41,43 @@ You **cannot** access:
 
 ### Languages & Runtimes
 
-| Tool         | Available  | Notes                                     |
-|--------------|------------|-------------------------------------------|
-| Node.js      | ✅         | Via pacman                                |
-| npm          | ✅         | Global installs go to `~/.local/`         |
-| Python       | ✅         | Via pacman                                |
-| pip          | ✅         | Via `python-pip` pacman package           |
-| uv           | ✅         | Fast Python package manager               |
+| Tool    | Available | Notes                             |
+| ------- | --------- | --------------------------------- |
+| Node.js | ✅        | Via pacman                        |
+| npm     | ✅        | Global installs go to `~/.local/` |
+| Python  | ✅        | Via pacman                        |
+| pip     | ✅        | Via `python-pip` pacman package   |
+| uv      | ✅        | Fast Python package manager       |
 
 ### System Tools
 
-| Tool         | Available  | Notes                                     |
-|--------------|------------|-------------------------------------------|
-| bash         | ✅         | Default shell                             |
-| git          | ✅         |                                           |
-| gcc          | ✅         | C compiler                                |
-| make         | ✅         |                                           |
-| rsync        | ✅         |                                           |
-| fd           | ✅         | Fast file finder (fd-find)                |
-| ripgrep      | ✅         | Fast text search (rg)                     |
-| ast-grep     | ✅         | AST-based code search and rewrite         |
-| openssh      | ✅         | ssh client available                      |
+| Tool     | Available | Notes                             |
+| -------- | --------- | --------------------------------- |
+| bash     | ✅        | Default shell                     |
+| git      | ✅        |                                   |
+| gcc      | ✅        | C compiler                        |
+| make     | ✅        |                                   |
+| rsync    | ✅        |                                   |
+| fd       | ✅        | Fast file finder (fd-find)        |
+| ripgrep  | ✅        | Fast text search (rg)             |
+| ast-grep | ✅        | AST-based code search and rewrite |
+| openssh  | ✅        | ssh client available              |
 
 ### Agent Tools
 
-| Tool         | Available  | Notes                                     |
-|--------------|------------|-------------------------------------------|
-| pi           | ✅         | pi-coding-agent CLI (global npm install)  |
+| Tool | Available | Notes                                    |
+| ---- | --------- | ---------------------------------------- |
+| pi   | ✅        | pi-coding-agent CLI (global npm install) |
 
 ### Package Managers
 
-| Manager      | Install Command                              | Destination               |
-|--------------|----------------------------------------------|---------------------------|
-| npm (global) | `npm install -g <package>`                   | `~/.local/lib/node_modules/` |
-| npm (local)  | `npm install <package>` (in /workspace)      | `/workspace/node_modules/` |
-| pip (user)   | `pip install --user <package>`               | `~/.local/`               |
-| uv           | `uv pip install --user <package>`            | `~/.local/`               |
-| uv (venv)    | `uv venv` then `uv pip install <package>`    | venv directory            |
+| Manager      | Install Command                                                                        | Destination                  |
+| ------------ | -------------------------------------------------------------------------------------- | ---------------------------- |
+| npm (global) | `npm install -g <package>`                                                             | `~/.local/lib/node_modules/` |
+| npm (local)  | `npm install <package>` (in /workspace)                                                | `/workspace/node_modules/`   |
+| pip (user)   | `pip install --user <package>`                                                         | `~/.local/`                  |
+| uv           | `uv pip install --user <package>`                                                      | `~/.local/`                  |
+| uv (venv)    | `uv venv` then `uv pip install <package>`                                              | venv directory               |
 | pacman       | ❌ No — root is not available and pacman requires it. Use `pip`/`uv` or `npm` instead. |
 
 > **Note**: npm lifecycle scripts (`postinstall`, `preinstall`, etc.) are **disabled by default** (`npm config set ignore-scripts true`). This prevents compromised packages from executing arbitrary code. To opt-in: `npm install --ignore-scripts=false`.
@@ -85,7 +86,7 @@ You **cannot** access:
 
 ## Network
 
-- **Network mode**: `slirp4netns` — you have outbound network access in a separate network namespace.
+- **Network mode**: `pasta` — you have outbound network access in a separate network namespace.
 - **Outbound**: You can make HTTP requests, install packages, push git, call LLM APIs, etc.
 - **Inbound**: The container is not reachable from the host or external network on any port. No port forwarding is configured.
 - **DNS**: Works for outbound resolution.
@@ -94,6 +95,7 @@ You **cannot** access:
 ### Environment Variables
 
 API keys and other secrets are forwarded from the host's `~/.env` file. Common variables:
+
 - `OPENROUTER_API_KEY`
 - `VLLM_API_KEY`
 - Any other variable defined in the host's `~/.env`
@@ -104,11 +106,11 @@ API keys and other secrets are forwarded from the host's `~/.env` file. Common v
 
 ## Resource Limits
 
-| Resource   | Limit    | Notes                          |
-|------------|----------|--------------------------------|
-| CPU        | 4 cores  | `--cpus 4`                     |
-| Memory     | 8 GB     | `--memory 8g`                  |
-| PIDs       | 1024     | `--pids-limit 1024`            |
+| Resource | Limit   | Notes               |
+| -------- | ------- | ------------------- |
+| CPU      | 4 cores | `--cpus 4`          |
+| Memory   | 8 GB    | `--memory 8g`       |
+| PIDs     | 1024    | `--pids-limit 1024` |
 
 ---
 
@@ -116,24 +118,26 @@ API keys and other secrets are forwarded from the host's `~/.env` file. Common v
 
 ### What Survives Across Runs
 
-| Item                               | Location                                  | Persists? |
-|------------------------------------|-------------------------------------------|-----------|
-| Files in `/workspace`              | Host filesystem (bind mount)              | ✅ Yes    |
-| Tools installed in `~/.local/`     | Persistent volume                         | ✅ Yes    |
-| npm global packages                | `~/.local/lib/node_modules/`              | ✅ Yes    |
-| Agent sessions                     | `~/.pi-agent-data/sessions/`             | ✅ Yes    |
-| Shell config (`~/.bashrc`)         | Persistent volume                         | ✅ Yes    |
-| Files in `/tmp`                    | tmpfs (ephemeral)                         | ❌ No     |
-| Root filesystem modifications      | Read-only rootfs                          | ❌ No     |
+| Item                           | Location                     | Persists? |
+| ------------------------------ | ---------------------------- | --------- |
+| Files in `/workspace`          | Host filesystem (bind mount) | ✅ Yes    |
+| Tools installed in `~/.local/` | Persistent volume            | ✅ Yes    |
+| npm global packages            | `~/.local/lib/node_modules/` | ✅ Yes    |
+| Agent sessions                 | `~/.pi-agent-data/sessions/` | ✅ Yes    |
+| Shell config (`~/.bashrc`)     | Persistent volume            | ✅ Yes    |
+| Files in `/tmp`                | tmpfs (ephemeral)            | ❌ No     |
+| Root filesystem modifications  | Read-only rootfs             | ❌ No     |
 
 ### What Gets Synced on Every Start
 
 The entrypoint rsyncs files from `/pi-source` (host config) into `~/.pi-agent-data/`:
+
 - New or updated skills
 - Updated `AGENTS.md`
 - New or changed settings files
 
 **Not synced** (preserved from volume):
+
 - `sessions/` — to avoid overwriting runtime state
 - `*.lock` files
 - Any files created inside the container
@@ -142,16 +146,16 @@ The entrypoint rsyncs files from `/pi-source` (host config) into `~/.pi-agent-da
 
 ## Security Model (Summary)
 
-| Threat                          | Mitigation                                   |
-|---------------------------------|----------------------------------------------|
-| Reading other projects          | Only `/workspace` is mounted                 |
-| Modifying host config           | `/pi-source` is read-only                    |
-| Modifying system files          | Root filesystem is read-only                 |
-| Privilege escalation            | `--cap-drop=ALL`, `--security-opt=no-new-privileges` |
-| setuid exploits                 | All setuid bits stripped from the image      |
-| Host process visibility         | Separate PID namespace                       |
-| Container runtime escape        | `--cap-drop=ALL` + rootless (user namespaces) |
-| Malicious npm scripts           | `ignore-scripts=true` by default             |
+| Threat                   | Mitigation                                           |
+| ------------------------ | ---------------------------------------------------- |
+| Reading other projects   | Only `/workspace` is mounted                         |
+| Modifying host config    | `/pi-source` is read-only                            |
+| Modifying system files   | Root filesystem is read-only                         |
+| Privilege escalation     | `--cap-drop=ALL`, `--security-opt=no-new-privileges` |
+| setuid exploits          | All setuid bits stripped from the image              |
+| Host process visibility  | Separate PID namespace                               |
+| Container runtime escape | `--cap-drop=ALL` + rootless (user namespaces)        |
+| Malicious npm scripts    | `ignore-scripts=true` by default                     |
 
 ### Limitations to Be Aware Of
 
@@ -175,6 +179,7 @@ The entrypoint rsyncs files from `/pi-source` (host config) into `~/.pi-agent-da
 ## Common Operations
 
 ### Install a Python package
+
 ```bash
 pip install --user <package>
 # or with uv
@@ -182,28 +187,33 @@ uv pip install --user <package>
 ```
 
 ### Install a Node.js package globally
+
 ```bash
 npm install -g <package>    # Goes to ~/.local/
 ```
 
 ### Install project dependencies
+
 ```bash
 cd /workspace
 npm install                  # Local, in /workspace/node_modules/
 ```
 
 ### Run the pi agent
+
 ```bash
 pi -p "Your prompt here"
 ```
 
 ### Check what tools are available
+
 ```bash
 which <tool>                 # Check if installed
 command -v <tool>            # More robust check
 ```
 
 ### View environment variables
+
 ```bash
 env                          # All variables
 printenv <VAR_NAME>          # Specific variable
@@ -213,10 +223,10 @@ printenv <VAR_NAME>          # Specific variable
 
 ## Troubleshooting
 
-| Problem                                  | Solution                                     |
-|------------------------------------------|----------------------------------------------|
-| Command not found                        | Install with `pip install --user` or `npm install -g` |
-| Permission denied writing to `/usr`      | Rootfs is read-only. Install to `~/.local/` or `/workspace` instead. |
-| npm install fails on native modules      | Run with `--ignore-scripts=false` to allow lifecycle scripts |
-| Can't reach host service on localhost    | Separate network namespace. Host services aren't reachable. |
-| Session data lost                        | Check that you're writing to `~/.pi-agent-data/sessions/` not `/tmp` |
+| Problem                               | Solution                                                             |
+| ------------------------------------- | -------------------------------------------------------------------- |
+| Command not found                     | Install with `pip install --user` or `npm install -g`                |
+| Permission denied writing to `/usr`   | Rootfs is read-only. Install to `~/.local/` or `/workspace` instead. |
+| npm install fails on native modules   | Run with `--ignore-scripts=false` to allow lifecycle scripts         |
+| Can't reach host service on localhost | Separate network namespace. Host services aren't reachable.          |
+| Session data lost                     | Check that you're writing to `~/.pi-agent-data/sessions/` not `/tmp` |

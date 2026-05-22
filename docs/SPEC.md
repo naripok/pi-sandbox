@@ -101,20 +101,20 @@ The agent **cannot** see:
 
 ### 3.3 What the Agent Can Do
 
-| Action                                       | Allowed?   | Notes                                                                                |
-| -------------------------------------------- | ---------- | ------------------------------------------------------------------------------------ |
-| Read/write project source                    | ✅ Yes     | Persisted on host immediately via bind mount                                         |
-| Install project dependencies (`npm install`) | ✅ Yes     | Within `/workspace` only                                                             |
-| Create project-local skills                  | ✅ Yes     | Written to `.pi/skills/` inside project                                              |
-| Modify project settings                      | ✅ Yes     | Written to `.pi/settings.json` inside project                                        |
-| Read global skills/settings                  | ✅ Yes     | Via read-only `/pi-source` mount                                                     |
-| Modify host global config                    | ❌ No      | `/pi-source` is mounted read-only                                                    |
-| Access other projects                        | ❌ No      | Not mounted, does not exist in container                                             |
-| Access host SSH keys                         | ❌ No      | Not mounted                                                                          |
-| Modify system files                          | ❌ No      | Root filesystem is read-only (`--read-only`)                                         |
-| Escalate privileges                          | ❌ No      | `--cap-drop=ALL`, `--security-opt=no-new-privileges`, rootless                       |
-| Install global tools                         | ✅ Yes     | To `~/.local/` via npm/pip/uv — persists in volume                                   |
-| Exfiltrate data over network                 | ⚠️ Partial | Can make outbound requests (slirp4netns), but only has access to this project's data |
+| Action                                       | Allowed?   | Notes                                                                          |
+| -------------------------------------------- | ---------- | ------------------------------------------------------------------------------ |
+| Read/write project source                    | ✅ Yes     | Persisted on host immediately via bind mount                                   |
+| Install project dependencies (`npm install`) | ✅ Yes     | Within `/workspace` only                                                       |
+| Create project-local skills                  | ✅ Yes     | Written to `.pi/skills/` inside project                                        |
+| Modify project settings                      | ✅ Yes     | Written to `.pi/settings.json` inside project                                  |
+| Read global skills/settings                  | ✅ Yes     | Via read-only `/pi-source` mount                                               |
+| Modify host global config                    | ❌ No      | `/pi-source` is mounted read-only                                              |
+| Access other projects                        | ❌ No      | Not mounted, does not exist in container                                       |
+| Access host SSH keys                         | ❌ No      | Not mounted                                                                    |
+| Modify system files                          | ❌ No      | Root filesystem is read-only (`--read-only`)                                   |
+| Escalate privileges                          | ❌ No      | `--cap-drop=ALL`, `--security-opt=no-new-privileges`, rootless                 |
+| Install global tools                         | ✅ Yes     | To `~/.local/` via npm/pip/uv — persists in volume                             |
+| Exfiltrate data over network                 | ⚠️ Partial | Can make outbound requests (pasta), but only has access to this project's data |
 
 ---
 
@@ -334,7 +334,7 @@ The entrypoint copies `config/APPEND_SYSTEM.md` from the repository into `$DATA_
 - **Filesystem layout** — what paths exist, what is read-only, what does not exist
 - **Identity and privileges** — the `pi` user, dropped capabilities, no-new-privileges enforcement
 - **Installed tools** — languages (Node.js, Python), system tools (git, gcc, ripgrep, ast-grep), package managers
-- **Network configuration** — slirp4netns mode, outbound-only access, no host service reachability
+- **Network configuration** — pasta mode, outbound-only access, no host service reachability
 - **Resource limits** — CPU, memory, PID constraints
 - **Persistence behavior** — what survives across runs, what is synced, what is ephemeral
 - **Security model summary** — threats, mitigations, and known limitations
@@ -384,7 +384,7 @@ The random suffix prevents name collisions when running multiple containers for 
 | ---------------------------------- | ------------------------------------------------------------------------------- |
 | `--rm`                             | Container is deleted when exited. No stale state.                               |
 | `--userns=keep-id`                 | Maps container UID to host UID. Files written by the agent appear owned by you. |
-| `--network=slirp4netns`            | Separate network namespace with outbound access. Not reachable from host.       |
+| `--network=pasta`                  | Separate network namespace with outbound access. Not reachable from host.       |
 | `--cap-drop=ALL`                   | Drop all Linux capabilities. No privilege escalation possible.                  |
 | `--security-opt=no-new-privileges` | Kernel enforces NoNewPrivs. `setuid`/`setgid` calls fail.                       |
 | `--read-only`                      | Root filesystem is read-only. Only writable paths are explicit mounts.          |
@@ -462,7 +462,7 @@ cd ~/Projects/my-project
 
 ### 9.6 Threat: Network Exfiltration
 
-**Mitigation:** The container uses `--network=slirp4netns`, providing outbound access in a separate network namespace. The container is not reachable from the host or external network on any port.
+**Mitigation:** The container uses `--network=pasta`, providing outbound access in a separate network namespace. The container is not reachable from the host or external network on any port.
 
 **Limitation:** Outbound network is still allowed. A compromised package could exfiltrate project data from `/workspace`. This is the inherent trade-off of container-based isolation versus VM-based isolation.
 
@@ -626,18 +626,18 @@ pytest tests/
 
 ## 15. Glossary
 
-| Term               | Definition                                                                                 |
-| ------------------ | ------------------------------------------------------------------------------------------ |
-| Bind mount         | A mount point that maps a host directory into a container directory                        |
-| Mount namespace    | A Linux kernel feature that gives a process its own isolated view of the filesystem mounts |
-| Persistent volume  | A podman-managed storage volume that survives container removal                            |
-| Read-only rootfs   | Container flag (`--read-only`) that makes the base image filesystem immutable              |
-| Rootless container | A container that runs without root privileges on the host, using user namespaces           |
-| Slirp4netns        | A userspace network stack for containers, providing outbound access without host exposure  |
-| tmpfs              | A temporary filesystem stored in RAM, lost when the mount is removed                       |
-| User namespace     | A Linux kernel feature that maps container UIDs to different host UIDs                     |
-| OCI                | Open Container Initiative, the standard format for container images                        |
-| NoNewPrivs         | A Linux security flag that prevents a process from gaining new privileges                  |
+| Term               | Definition                                                                                                   |
+| ------------------ | ------------------------------------------------------------------------------------------------------------ |
+| Bind mount         | A mount point that maps a host directory into a container directory                                          |
+| Mount namespace    | A Linux kernel feature that gives a process its own isolated view of the filesystem mounts                   |
+| Persistent volume  | A podman-managed storage volume that survives container removal                                              |
+| Read-only rootfs   | Container flag (`--read-only`) that makes the base image filesystem immutable                                |
+| Rootless container | A container that runs without root privileges on the host, using user namespaces                             |
+| Pasta              | A userspace network stack for containers (from SLC/OpenSBC), providing outbound access without host exposure |
+| tmpfs              | A temporary filesystem stored in RAM, lost when the mount is removed                                         |
+| User namespace     | A Linux kernel feature that maps container UIDs to different host UIDs                                       |
+| OCI                | Open Container Initiative, the standard format for container images                                          |
+| NoNewPrivs         | A Linux security flag that prevents a process from gaining new privileges                                    |
 
 ---
 
