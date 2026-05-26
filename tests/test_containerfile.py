@@ -35,3 +35,9 @@ def test_containerfile_has_entrypoint():
 def test_containerfile_has_user_pi():
     content = (REPO_ROOT / "Containerfile").read_text()
     assert "USER pi" in content, "Missing USER pi directive"
+
+
+def test_containerfile_pins_pi_agent_version():
+    content = (REPO_ROOT / "Containerfile").read_text()
+    assert "ARG PI_AGENT_VERSION=" in content, "Missing version ARG for pi-coding-agent"
+    assert "@${PI_AGENT_VERSION}" in content, "pi-coding-agent install should use the version ARG"
