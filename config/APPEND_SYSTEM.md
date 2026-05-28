@@ -84,6 +84,25 @@ You **cannot** access:
 
 ---
 
+## Per-Project System Dependencies
+
+If the project needs system-level packages (CMake, libffi, ffmpeg) that are not available via npm/pip/uv:
+
+1. Create or edit `.pi-packages` in the project root. One package per line, `#` for comments.
+2. The user must approve the packages on their next sandbox session (interactive prompt).
+3. On approval, the sandbox image is rebuilt with those packages installed.
+
+Example `.pi-packages`:
+```
+# Build tools
+cmake
+pkgconf
+```
+
+After writing `.pi-packages`, tell the user: "I've added packages to `.pi-packages`. Re-enter the sandbox to approve and rebuild."
+
+---
+
 ## Network
 
 - **Network mode**: `pasta` — you have outbound network access in a separate network namespace.
