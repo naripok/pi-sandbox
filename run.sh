@@ -20,6 +20,68 @@ if [ "${1:-}" = "--reset" ]; then
     exit 0
 fi
 
+# --- Per-project package handling ---
+# Must be AFTER the --reset handler so `run.sh --reset` works even with invalid .pi-packages
+
+parse_packages() {
+    # Parse .pi-packages: strip whitespace, CRLF, skip comments/blanks.
+    # Output: space-separated package list on stdout.
+    local file="$1"
+    if [ ! -f "$file" ]; then
+        echo ""
+        return
+    fi
+    # Use || true to prevent pipefail from killing the script when grep finds no matches
+    sed 's/\r$//' "$file" | \
+        sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | \
+        { grep -v '^#' || true; } | \
+        { grep -v '^$' || true; } | \
+        tr '\n' ' ' || true
+}
+
+validate_packages() {
+    # Reject .pi-packages lines containing shell metacharacters.
+    # Returns 1 and prints error if dangerous characters found.
+    local file="$1"
+    if [ ! -f "$file" ]; then
+        return 0
+    fi
+    local invalid_line
+    invalid_line=$(sed 's/\r$//' "$file" | \
+        grep -n '[;|$\`&><*?~\\!]' || true)
+    if [ -n "$invalid_line" ]; then
+        echo "Error: .pi-packages contains dangerous characters:" >&2
+        echo "$invalid_line" >&2
+        echo "Only alphanumeric characters, hyphens, dots, and underscores are allowed." >&2
+        return 1
+    fi
+    return 0
+}
+
+compute_hash() {
+    # Compute deterministic hash of .pi-packages raw bytes.
+    # Output: first 8 hex chars of SHA-256.
+    local file="$1"
+    if [ ! -f "$file" ]; then
+        echo ""
+        return
+    fi
+    sha256sum "$file" | cut -c1-8
+}
+
+# Read packages only if PI_AGENT_IMAGE is not set (override bypasses .pi-packages entirely)
+EXTRA_PACKAGES=""
+HAS_PACKAGES=0
+if [ -z "${PI_AGENT_IMAGE:-}" ] && [ -f ".pi-packages" ]; then
+    if ! validate_packages ".pi-packages"; then
+        exit 1
+    fi
+    EXTRA_PACKAGES=$(parse_packages ".pi-packages")
+    if [ -n "$(echo "$EXTRA_PACKAGES" | tr -d '[:space:]')" ]; then
+        HAS_PACKAGES=1
+    fi
+fi
+
 # Ensure mount source exists
 mkdir -p "${GLOBAL_CONFIG}"
 
@@ -30,7 +92,11 @@ podman volume create "$PERSIST_VOLUME" >/dev/null 2>&1 || true
 # Build image if it doesn't exist
 if ! podman image exists "$IMAGE_NAME"; then
     echo "Building image ${IMAGE_NAME}..."
-    podman build -t "$IMAGE_NAME" "$(dirname "$0")"
+    if [ "$HAS_PACKAGES" -eq 1 ]; then
+        podman build --build-arg "PACKAGES=${EXTRA_PACKAGES}" -t "$IMAGE_NAME" "$(dirname "$0")"
+    else
+        podman build -t "$IMAGE_NAME" "$(dirname "$0")"
+    fi
 fi
 
 # Forward all variables defined in the env file
@@ -62,6 +128,11 @@ fi
 # Allocate TTY only when stdin is a terminal
 TTY_FLAG=""
 [ -t 0 ] && TTY_FLAG="-t"
+
+# Pass extra packages info to the container
+if [ "$HAS_PACKAGES" -eq 1 ]; then
+    ENV_ARGS+=(-e "EXTRA_PACKAGES=${EXTRA_PACKAGES}")
+fi
 
 exec podman run -i ${TTY_FLAG} --rm \
     --name "$CONTAINER_NAME" \

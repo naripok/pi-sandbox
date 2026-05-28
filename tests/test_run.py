@@ -99,6 +99,186 @@ def test_run_script_generates_correct_podman_command():
         assert "/pi-data/sessions" not in run_line, "Separate sessions mount should not exist"
 
 
+def test_run_script_parses_packages_from_file():
+    """Verifies run.sh extracts package names from .pi-packages, ignoring comments and blanks."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = pathlib.Path(tmpdir)
+        fake_podman = tmpdir / "podman"
+        log_file = tmpdir / "podman.log"
+        fake_config = tmpdir / "pi-config"
+        fake_config.mkdir()
+
+        fake_podman.write_text(
+            f'#!/bin/bash\n'
+            f'echo "$@" >> "{log_file}"\n'
+            f'exit 0\n'
+        )
+        fake_podman.chmod(0o755)
+
+        # Create a .pi-packages with mixed content
+        (tmpdir / ".pi-packages").write_text("# build tools\ncmake\n\n  pkgconf  \n")
+
+        env = os.environ.copy()
+        env["PATH"] = f"{tmpdir}:{env['PATH']}"
+        env["HOME"] = str(tmpdir)
+        env["PI_AGENT_CONFIG"] = str(fake_config)
+
+        result = subprocess.run(
+            [str(REPO_ROOT / "run.sh"), "echo", "test"],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(tmpdir),
+        )
+        # The build command should contain both packages
+        build_line = log_file.read_text()
+        assert "cmake" in build_line, f"Expected cmake in build args, got: {build_line}"
+        assert "pkgconf" in build_line, f"Expected pkgconf in build args, got: {build_line}"
+
+
+def test_run_script_rejects_dangerous_characters_in_packages():
+    """Verifies run.sh rejects .pi-packages containing shell metacharacters."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = pathlib.Path(tmpdir)
+        fake_podman = tmpdir / "podman"
+        log_file = tmpdir / "podman.log"
+        fake_config = tmpdir / "pi-config"
+        fake_config.mkdir()
+
+        fake_podman.write_text(
+            f'#!/bin/bash\n'
+            f'echo "$@" >> "{log_file}"\n'
+            f'exit 0\n'
+        )
+        fake_podman.chmod(0o755)
+
+        (tmpdir / ".pi-packages").write_text("cmake; rm -rf /\n")
+
+        env = os.environ.copy()
+        env["PATH"] = f"{tmpdir}:{env['PATH']}"
+        env["HOME"] = str(tmpdir)
+        env["PI_AGENT_CONFIG"] = str(fake_config)
+
+        result = subprocess.run(
+            [str(REPO_ROOT / "run.sh"), "echo", "test"],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(tmpdir),
+        )
+        assert result.returncode != 0, f"Expected non-zero exit, got {result.returncode}: {result.stderr}"
+        output = result.stdout + result.stderr
+        assert "invalid" in output.lower() or "error" in output.lower() or "dangerous" in output.lower(), \
+            f"Expected error message about invalid content, got: {output}"
+
+
+def test_run_script_uses_shared_image_without_packages():
+    """Verifies run.sh uses pi-agent-isolated when no .pi-packages exists."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = pathlib.Path(tmpdir)
+        fake_podman = tmpdir / "podman"
+        log_file = tmpdir / "podman.log"
+        fake_config = tmpdir / "pi-config"
+        fake_config.mkdir()
+
+        fake_podman.write_text(
+            f'#!/bin/bash\n'
+            f'echo "$@" >> "{log_file}"\n'
+            f'exit 1\n'
+        )
+        fake_podman.chmod(0o755)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{tmpdir}:{env['PATH']}"
+        env["HOME"] = str(tmpdir)
+        env["PI_AGENT_CONFIG"] = str(fake_config)
+
+        result = subprocess.run(
+            [str(REPO_ROOT / "run.sh"), "echo", "test"],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(tmpdir),
+        )
+        assert result.returncode != 0  # expected — fake podman always fails
+        build_line = log_file.read_text()
+        assert "pi-agent-isolated" in build_line, f"Expected shared base image in build, got: {build_line}"
+
+
+def test_run_script_uses_shared_image_with_empty_packages_file():
+    """Verifies run.sh uses pi-agent-isolated when .pi-packages is empty or comment-only."""
+    for content, label in [("", "empty"), ("# only comments\n", "comments-only")]:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = pathlib.Path(tmpdir)
+            fake_podman = tmpdir / "podman"
+            log_file = tmpdir / "podman.log"
+            fake_config = tmpdir / "pi-config"
+            fake_config.mkdir()
+
+            fake_podman.write_text(
+                f'#!/bin/bash\n'
+                f'echo "$@" >> "{log_file}"\n'
+                f'exit 1\n'
+            )
+            fake_podman.chmod(0o755)
+
+            (tmpdir / ".pi-packages").write_text(content)
+
+            env = os.environ.copy()
+            env["PATH"] = f"{tmpdir}:{env['PATH']}"
+            env["HOME"] = str(tmpdir)
+            env["PI_AGENT_CONFIG"] = str(fake_config)
+
+            result = subprocess.run(
+                [str(REPO_ROOT / "run.sh"), "echo", "test"],
+                capture_output=True,
+                text=True,
+                env=env,
+                cwd=str(tmpdir),
+            )
+            build_line = log_file.read_text()
+            assert "pi-agent-isolated" in build_line, \
+                f"Expected shared base for {label} .pi-packages, got: {build_line}"
+
+
+def test_run_script_strips_crlf_from_packages():
+    """Verifies run.sh handles Windows-style CRLF line endings in .pi-packages."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = pathlib.Path(tmpdir)
+        fake_podman = tmpdir / "podman"
+        log_file = tmpdir / "podman.log"
+        fake_config = tmpdir / "pi-config"
+        fake_config.mkdir()
+
+        fake_podman.write_text(
+            f'#!/bin/bash\n'
+            f'echo "$@" >> "{log_file}"\n'
+            f'exit 0\n'
+        )
+        fake_podman.chmod(0o755)
+
+        # Write with CRLF line endings
+        (tmpdir / ".pi-packages").write_text("cmake\r\npkgconf\r\n")
+
+        env = os.environ.copy()
+        env["PATH"] = f"{tmpdir}:{env['PATH']}"
+        env["HOME"] = str(tmpdir)
+        env["PI_AGENT_CONFIG"] = str(fake_config)
+
+        result = subprocess.run(
+            [str(REPO_ROOT / "run.sh"), "echo", "test"],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(tmpdir),
+        )
+        build_line = log_file.read_text()
+        assert "cmake" in build_line, f"Expected cmake in build args, got: {build_line}"
+        assert "pkgconf" in build_line, f"Expected pkgconf in build args, got: {build_line}"
+        # Should not contain \r
+        assert "\r" not in build_line, f"CRLF not stripped properly: {build_line}"
+
+
 def test_run_script_reset_removes_volume():
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir = pathlib.Path(tmpdir)
