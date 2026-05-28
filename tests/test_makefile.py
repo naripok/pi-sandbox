@@ -20,3 +20,9 @@ def test_makefile_has_volumes_target():
 def test_makefile_has_reset_target():
     content = (REPO_ROOT / "Makefile").read_text()
     assert "reset:" in content, "Missing reset target"
+
+
+def test_makefile_has_images_target():
+    """Verifies the Makefile includes the images target for listing per-project images."""
+    content = (REPO_ROOT / "Makefile").read_text()
+    assert "images:" in content, "Missing images target in Makefile"

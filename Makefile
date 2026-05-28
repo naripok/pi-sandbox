@@ -1,6 +1,6 @@
 IMAGE_NAME := pi-agent-isolated
 
-.PHONY: build shell pi clean volumes reset
+.PHONY: build shell pi clean volumes reset images
 
 install:
 	./install.sh
@@ -22,3 +22,6 @@ volumes:
 
 reset:
 	./run.sh --reset
+
+images:
+	@podman images --filter "reference=pi-agent-isolated-*" --format "{{.Repository}}:{{.Tag}}" 2>/dev/null || true
