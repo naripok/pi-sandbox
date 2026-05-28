@@ -1,5 +1,8 @@
 import os
+import os as _os
 import pathlib
+import pty
+import select
 import subprocess
 import tempfile
 
@@ -126,13 +129,30 @@ def test_run_script_parses_packages_from_file():
         env["HOME"] = str(tmpdir)
         env["PI_AGENT_CONFIG"] = str(fake_config)
 
-        result = subprocess.run(
+        # Use pty to provide a TTY for the approval prompt
+        master_fd, slave_fd = pty.openpty()
+        proc = subprocess.Popen(
             [str(REPO_ROOT / "run.sh"), "echo", "test"],
-            capture_output=True,
-            text=True,
-            env=env,
-            cwd=str(tmpdir),
+            stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
+            env=env, cwd=str(tmpdir),
         )
+        _os.close(slave_fd)
+
+        # Send 'y\n' to approve
+        _os.write(master_fd, b"y\n")
+        proc.wait(timeout=30)
+
+        # Read output
+        while True:
+            try:
+                ready, _, _ = select.select([master_fd], [], [], 0.1)
+                if not ready:
+                    break
+                _os.read(master_fd, 4096)
+            except OSError:
+                break
+        _os.close(master_fd)
+
         # The build command should contain both packages
         build_line = log_file.read_text()
         assert "cmake" in build_line, f"Expected cmake in build args, got: {build_line}"
@@ -271,13 +291,30 @@ def test_run_script_strips_crlf_from_packages():
         env["HOME"] = str(tmpdir)
         env["PI_AGENT_CONFIG"] = str(fake_config)
 
-        result = subprocess.run(
+        # Use pty to provide a TTY for the approval prompt
+        master_fd, slave_fd = pty.openpty()
+        proc = subprocess.Popen(
             [str(REPO_ROOT / "run.sh"), "echo", "test"],
-            capture_output=True,
-            text=True,
-            env=env,
-            cwd=str(tmpdir),
+            stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
+            env=env, cwd=str(tmpdir),
         )
+        _os.close(slave_fd)
+
+        # Send 'y\n' to approve
+        _os.write(master_fd, b"y\n")
+        proc.wait(timeout=30)
+
+        # Read output
+        while True:
+            try:
+                ready, _, _ = select.select([master_fd], [], [], 0.1)
+                if not ready:
+                    break
+                _os.read(master_fd, 4096)
+            except OSError:
+                break
+        _os.close(master_fd)
+
         build_line = log_file.read_text()
         assert "cmake" in build_line, f"Expected cmake in build args, got: {build_line}"
         assert "pkgconf" in build_line, f"Expected pkgconf in build args, got: {build_line}"
@@ -427,6 +464,112 @@ def test_pi_agent_image_overrides_shared_base():
         )
         build_line = log_file.read_text()
         assert "my-custom-image" in build_line, f"Expected PI_AGENT_IMAGE override, got: {build_line}"
+
+
+def test_run_script_refuses_rebuild_without_tty():
+    """Verifies run.sh refuses to rebuild when stdin is not a terminal (non-interactive mode)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = pathlib.Path(tmpdir)
+        fake_podman = tmpdir / "podman"
+        log_file = tmpdir / "podman.log"
+        fake_config = tmpdir / "pi-config"
+        fake_config.mkdir()
+
+        fake_podman.write_text(
+            f'#!/bin/bash\n'
+            f'echo "$@" >> "{log_file}"\n'
+            f'if [ "$1" = "image" ] && [ "$2" = "exists" ]; then\n'
+            f'    exit 1\n'
+            f'fi\n'
+            f'exit 0\n'
+        )
+        fake_podman.chmod(0o755)
+
+        (tmpdir / ".pi-packages").write_text("cmake\n")
+
+        env = os.environ.copy()
+        env["PATH"] = f"{tmpdir}:{env['PATH']}"
+        env["HOME"] = str(tmpdir)
+        env["PI_AGENT_CONFIG"] = str(fake_config)
+
+        # Run without a TTY and without input — simulates non-interactive pipe
+        result = subprocess.run(
+            [str(REPO_ROOT / "run.sh"), "echo", "test"],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(tmpdir),
+        )
+        output = result.stdout + result.stderr
+        assert result.returncode != 0, f"Expected non-zero exit for non-interactive rebuild"
+        assert "terminal" in output.lower() or "interactive" in output.lower() or "tty" in output.lower(), \
+            f"Expected non-interactive error message, got: {output}"
+
+
+def test_run_script_approves_and_builds_with_packages():
+    """Verifies run.sh passes EXTRA_PACKAGES as --build-arg to podman build when user approves.
+    Uses pty to provide a TTY for the approval prompt."""
+    import pty, select, os as _os
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = pathlib.Path(tmpdir)
+        fake_podman = tmpdir / "podman"
+        log_file = tmpdir / "podman.log"
+        fake_config = tmpdir / "pi-config"
+        fake_config.mkdir()
+
+        fake_podman.write_text(
+            f'#!/bin/bash\n'
+            f'echo "$@" >> "{log_file}"\n'
+            f'if [ "$1" = "image" ] && [ "$2" = "exists" ]; then\n'
+            f'    exit 1\n'
+            f'fi\n'
+            f'exit 0\n'
+        )
+        fake_podman.chmod(0o755)
+
+        (tmpdir / ".pi-packages").write_text("cmake\npkgconf\n")
+
+        env = os.environ.copy()
+        env["PATH"] = f"{tmpdir}:{env['PATH']}"
+        env["HOME"] = str(tmpdir)
+        env["PI_AGENT_CONFIG"] = str(fake_config)
+
+        # Use pty to provide a TTY for the approval prompt
+        master_fd, slave_fd = pty.openpty()
+        proc = subprocess.Popen(
+            [str(REPO_ROOT / "run.sh"), "echo", "test"],
+            stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
+            env=env, cwd=str(tmpdir),
+        )
+        _os.close(slave_fd)
+
+        # Send 'y\n' to approve
+        _os.write(master_fd, b"y\n")
+        proc.wait(timeout=30)
+
+        # Read output
+        output = b""
+        while True:
+            try:
+                ready, _, _ = select.select([master_fd], [], [], 0.1)
+                if not ready:
+                    break
+                output += _os.read(master_fd, 4096)
+            except OSError:
+                break
+        _os.close(master_fd)
+
+        build_lines = log_file.read_text().splitlines()
+        build_line = ""
+        for line in build_lines:
+            if "build" in line:
+                build_line = line
+                break
+        assert "--build-arg" in build_line, f"Expected --build-arg in build command, got: {build_line}"
+        assert "EXTRA_PACKAGES" in build_line, f"Expected EXTRA_PACKAGES arg, got: {build_line}"
+        assert "cmake" in build_line, f"Expected cmake in build args, got: {build_line}"
+        assert "pkgconf" in build_line, f"Expected pkgconf in build args, got: {build_line}"
 
 
 def test_run_script_pi_agent_image_bypasses_packages():

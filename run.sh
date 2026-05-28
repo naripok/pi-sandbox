@@ -105,9 +105,30 @@ podman volume create "$PERSIST_VOLUME" >/dev/null 2>&1 || true
 
 # Build image if it doesn't exist
 if ! podman image exists "$IMAGE_NAME"; then
+    if [ "$HAS_PACKAGES" -eq 1 ] && [ -t 0 ]; then
+        echo ""
+        echo "[!] Building sandbox image with extra packages:"
+        for pkg in $EXTRA_PACKAGES; do
+            echo "       $pkg"
+        done
+        echo ""
+        read -r -p "Approve? [y/N] " APPROVAL
+        if [ "$APPROVAL" != "y" ] && [ "$APPROVAL" != "Y" ]; then
+            echo "Aborted. Extra packages not installed." >&2
+            exit 1
+        fi
+    elif [ "$HAS_PACKAGES" -eq 1 ]; then
+        echo "" >&2
+        echo "Error: .pi-packages requires image rebuild but stdin is not a terminal." >&2
+        echo "Run interactively or set PI_AGENT_IMAGE to bypass." >&2
+        exit 1
+    fi
+
     echo "Building image ${IMAGE_NAME}..."
     if [ "$HAS_PACKAGES" -eq 1 ]; then
-        podman build --build-arg "PACKAGES=${EXTRA_PACKAGES}" -t "$IMAGE_NAME" "$(dirname "$0")"
+        podman build \
+            --build-arg EXTRA_PACKAGES="$EXTRA_PACKAGES" \
+            -t "$IMAGE_NAME" "$(dirname "$0")"
     else
         podman build -t "$IMAGE_NAME" "$(dirname "$0")"
     fi
