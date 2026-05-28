@@ -779,16 +779,25 @@ Expected: FAIL
 
 - [ ] **Step 3: Implement in Containerfile**
 
-Add `ARG EXTRA_PACKAGES=""` near the top and append to the pacman install line:
+In the Containerfile, `ARG EXTRA_PACKAGES` must be placed **before the `RUN pacman` block** (line 3) because Dockerfile ARGs are only available in instructions that follow the ARG declaration. Place it alongside the existing `ARG PI_AGENT_VERSION`. Also modify the pacman RUN to append `${EXTRA_PACKAGES}` and add error handling.
+
+The top of the Containerfile should look like:
 
 ```dockerfile
-ARG PI_AGENT_VERSION=0.73.1
+FROM archlinux:latest
+
 ARG EXTRA_PACKAGES=""
 
 RUN pacman -Syu --noconfirm && \
     pacman -S --noconfirm nodejs npm git openssh bash fd ripgrep diffutils python python-pip uv gcc make ast-grep rsync ${EXTRA_PACKAGES} || \
-    { echo "Error: Failed to install one or more packages. Check the package names in .pi-packages." >&2; exit 1; } && \
+    { echo "Error: Failed to install packages. Check names in .pi-packages." >&2; exit 1; } && \
     pacman -Scc --noconfirm
+
+# Strip setuid/setgid bits...
+...
+
+ARG PI_AGENT_VERSION=0.73.1
+RUN npm install -g @mariozechner/pi-coding-agent@${PI_AGENT_VERSION}
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
