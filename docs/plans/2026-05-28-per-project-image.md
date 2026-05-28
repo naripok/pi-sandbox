@@ -485,15 +485,28 @@ def test_run_script_prints_rebuild_notice_with_packages():
         env["HOME"] = str(tmpdir)
         env["PI_AGENT_CONFIG"] = str(fake_config)
 
-        result = subprocess.run(
+        # Use pty to provide a TTY so the approval prompt path is exercised
+        import pty, select, os as _os
+        master_fd, slave_fd = pty.openpty()
+        proc = subprocess.Popen(
             [str(REPO_ROOT / "run.sh"), "echo", "test"],
-            capture_output=True,
-            text=True,
-            env=env,
-            cwd=str(tmpdir),
-            input="y\n",
+            stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
+            env=env, cwd=str(tmpdir),
         )
-        output = result.stdout + result.stderr
+        _os.close(slave_fd)
+        _os.write(master_fd, b"y\n")
+        proc.wait()
+        output_bytes = b""
+        while True:
+            try:
+                ready, _, _ = select.select([master_fd], [], [], 0.1)
+                if not ready:
+                    break
+                output_bytes += _os.read(master_fd, 4096)
+            except OSError:
+                break
+        _os.close(master_fd)
+        output = output_bytes.decode("utf-8", errors="replace")
         # Should mention the packages and/or "extra" or "package"
         assert "extra" in output.lower() or "package" in output.lower(), \
             f"Expected rebuild notice mentioning packages, got: {output}"
@@ -940,15 +953,28 @@ def test_integration_per_project_image_with_packages():
         env["HOME"] = str(tmpdir)
         env["PI_AGENT_CONFIG"] = str(fake_config)
 
-        result = subprocess.run(
+        # Use pty to provide a TTY so the approval prompt is exercised
+        import pty, select, os as _os
+        master_fd, slave_fd = pty.openpty()
+        proc = subprocess.Popen(
             [str(REPO_ROOT / "run.sh"), "echo", "test"],
-            capture_output=True,
-            text=True,
-            env=env,
-            cwd=str(tmpdir),
-            input="y\n",
+            stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
+            env=env, cwd=str(tmpdir),
         )
-        assert result.returncode == 0, f"Expected success, got: {result.stderr}"
+        _os.close(slave_fd)
+        _os.write(master_fd, b"y\n")
+        proc.wait()
+        output_bytes = b""
+        while True:
+            try:
+                ready, _, _ = select.select([master_fd], [], [], 0.1)
+                if not ready:
+                    break
+                output_bytes += _os.read(master_fd, 4096)
+            except OSError:
+                break
+        _os.close(master_fd)
+        assert proc.returncode == 0, f"Expected success, got: {output_bytes.decode('utf-8', errors='replace')}"
 
         lines = log_file.read_text().strip().splitlines()
         # Verify per-project image name in build command
