@@ -1,5 +1,8 @@
 import os
+import os as _os
 import pathlib
+import pty
+import select
 import subprocess
 import tempfile
 
@@ -337,3 +340,106 @@ def test_config_sync(built_image):
                 env=env,
                 cwd=str(tmpdir),
             )
+
+
+# --- Per-project image integration tests ---
+
+
+def test_integration_per_project_image_with_packages():
+    """End-to-end: .pi-packages triggers per-project image naming and build-arg passing.
+    Uses pty to provide a TTY for the approval prompt."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = pathlib.Path(tmpdir)
+        fake_podman = tmpdir / "podman"
+        log_file = tmpdir / "podman.log"
+        fake_config = tmpdir / "pi-config"
+        fake_config.mkdir()
+
+        fake_podman.write_text(
+            f'#!/bin/bash\n'
+            f'echo "$@" >> "{log_file}"\n'
+            f'if [ "$1" = "image" ] && [ "$2" = "exists" ]; then\n'
+            f'    exit 1\n'
+            f'fi\n'
+            f'exit 0\n'
+        )
+        fake_podman.chmod(0o755)
+
+        (tmpdir / ".pi-packages").write_text("cmake\n")
+
+        env = os.environ.copy()
+        env["PATH"] = f"{tmpdir}:{env['PATH']}"
+        env["HOME"] = str(tmpdir)
+        env["PI_AGENT_CONFIG"] = str(fake_config)
+
+        # Use pty to provide a TTY for the approval prompt
+        master_fd, slave_fd = pty.openpty()
+        proc = subprocess.Popen(
+            [str(REPO_ROOT / "run.sh"), "echo", "test"],
+            stdin=slave_fd, stdout=slave_fd, stderr=slave_fd,
+            env=env, cwd=str(tmpdir),
+        )
+        _os.close(slave_fd)
+        _os.write(master_fd, b"y\n")
+        proc.wait(timeout=30)
+
+        output = b""
+        while True:
+            try:
+                ready, _, _ = select.select([master_fd], [], [], 0.1)
+                if not ready:
+                    break
+                output += _os.read(master_fd, 4096)
+            except OSError:
+                break
+        _os.close(master_fd)
+
+        assert proc.returncode == 0, f"Expected success, got: {output.decode('utf-8', errors='replace')}"
+
+        lines = log_file.read_text().strip().splitlines()
+        build_line = ""
+        for line in lines:
+            if "build" in line:
+                build_line = line
+                break
+        assert "pi-agent-isolated-" in build_line, f"Expected per-project image name, got: {build_line}"
+        assert "--build-arg" in build_line, f"Expected --build-arg, got: {build_line}"
+        assert "EXTRA_PACKAGES" in build_line, f"Expected EXTRA_PACKAGES arg, got: {build_line}"
+
+
+def test_integration_no_rebuild_when_image_exists():
+    """Verifies no rebuild when matching per-project image already exists."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = pathlib.Path(tmpdir)
+        fake_podman = tmpdir / "podman"
+        log_file = tmpdir / "podman.log"
+        fake_config = tmpdir / "pi-config"
+        fake_config.mkdir()
+
+        # Image exists returns 0 (found) — no build
+        fake_podman.write_text(
+            f'#!/bin/bash\n'
+            f'echo "$@" >> "{log_file}"\n'
+            f'exit 0\n'
+        )
+        fake_podman.chmod(0o755)
+
+        (tmpdir / ".pi-packages").write_text("cmake\n")
+
+        env = os.environ.copy()
+        env["PATH"] = f"{tmpdir}:{env['PATH']}"
+        env["HOME"] = str(tmpdir)
+        env["PI_AGENT_CONFIG"] = str(fake_config)
+
+        result = subprocess.run(
+            [str(REPO_ROOT / "run.sh"), "echo", "test"],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(tmpdir),
+        )
+        assert result.returncode == 0, f"Expected success: {result.stderr}"
+        lines = log_file.read_text().strip().splitlines()
+        # No "podman build" (without "exists") should be present
+        build_lines = [l for l in lines if "build" in l.lower() and "exists" not in l.lower() and "image" not in l.lower()]
+        assert len(build_lines) == 0, f"Expected no build when image exists, got: {build_lines}"
