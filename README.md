@@ -33,6 +33,32 @@ pi-sandbox --reset                        # wipe persistent volume
 
 The first run builds the Arch Linux container image automatically. Subsequent runs start instantly.
 
+## Per-Project System Dependencies
+
+The sandbox image ships with a fixed set of tools (Node.js, Python, git, gcc, etc.). If your project needs additional system-level packages (CMake, libffi, ffmpeg), declare them in a `.pi-packages` file in the project root:
+
+```
+# Build tools
+cmake
+pkgconf
+
+# Cryptography
+libffi
+```
+
+**How it works:**
+
+1. Create `.pi-packages` in your project root (one package per line, `#` for comments).
+2. On the next `pi-sandbox` run, the script detects the file and prompts you to approve the packages.
+3. On approval, a per-project image is built with those packages installed.
+4. The image name includes a hash of `.pi-packages`, so changes trigger a new approval.
+
+Projects without `.pi-packages` use the shared base image — zero overhead.
+
+**Security:** Every change to `.pi-packages` requires explicit user approval before the image is rebuilt. The agent can write `.pi-packages` but cannot bypass the approval gate. Non-interactive mode (pipes, CI) refuses to rebuild without approval.
+
+**Override:** Set `PI_AGENT_IMAGE=my-custom-image` to bypass `.pi-packages` entirely and use a specific image.
+
 ## How It Works
 
 ```
@@ -60,7 +86,7 @@ podman volume: pi-agent-persist-myproject-a1b2c3d4
 | `config/entrypoint.sh`    | Syncs config, sets up volume, drops privileges to pi user             |
 | `config/.bashrc`          | Shell prompt, aliases, and persistent PATH configuration              |
 | `config/APPEND_SYSTEM.md` | Agent environment reference — auto-injected into the system prompt    |
-| `run.sh`                  | Launch script — builds image, creates volume, runs container          |
+| `run.sh`                  | Launch script — builds image, creates volume, runs container. Handles `.pi-packages` with user approval |
 | `install.sh`              | Prerequisite checks, image build, and alias setup for host-wide use   |
 | `Makefile`                | Convenience targets (`build`, `shell`, `pi`, `clean`, `reset`)        |
 | `tests/`                  | Pytest suite covering build, filesystem, persistence, and integration |
@@ -79,7 +105,7 @@ All settings are controlled via environment variables:
 
 | Variable            | Default             | Description                                |
 | ------------------- | ------------------- | ------------------------------------------ |
-| `PI_AGENT_IMAGE`    | `pi-agent-isolated` | Container image name                       |
+| `PI_AGENT_IMAGE`    | `pi-agent-isolated` | Container image name (bypasses `.pi-packages` auto-derivation) |
 | `PI_AGENT_CONFIG`   | `~/.pi/agent`       | Path to global pi config directory         |
 | `PI_AGENT_ENV_FILE` | `~/.env`            | Env file to forward variables to container |
 
