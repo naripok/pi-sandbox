@@ -54,3 +54,5 @@ def test_containerfile_has_build_error_handling():
     """Verifies Containerfile has error handling for package installation failures."""
     content = (REPO_ROOT / "Containerfile").read_text()
     assert "exit 1" in content, "Must have explicit error exit on package failure"
+    assert "EXTRA_PACKAGES" in content or "extra" in content.lower(), \
+        "Error message should reference the extra packages that failed"

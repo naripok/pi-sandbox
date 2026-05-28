@@ -4,7 +4,7 @@ ARG EXTRA_PACKAGES=""
 
 RUN pacman -Syu --noconfirm && \
     pacman -S --noconfirm nodejs npm git openssh bash fd ripgrep diffutils python python-pip uv gcc make ast-grep rsync ${EXTRA_PACKAGES} || \
-    { echo "Error: Failed to install packages. Check names in .pi-packages." >&2; exit 1; } && \
+    { echo "" >&2; echo "Error: package installation failed." >&2; echo "Extra packages requested: ${EXTRA_PACKAGES}" >&2; echo "Verify names at https://archlinux.org/packages/ or run 'pacman -Ss <name>' to search." >&2; exit 1; } && \
     pacman -Scc --noconfirm
 
 # Strip setuid/setgid bits — hardening the image
