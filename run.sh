@@ -1,7 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-IMAGE_NAME="${PI_AGENT_IMAGE:-pi-agent-isolated}"
 CONTAINER_NAME="pi-agent-$(basename "$PWD")-${RANDOM}"
 GLOBAL_CONFIG="${PI_AGENT_CONFIG:-${HOME}/.pi/agent}"
 ENV_FILE="${PI_AGENT_ENV_FILE:-${HOME}/.env}"
@@ -83,6 +82,18 @@ if [ -z "${PI_AGENT_IMAGE:-}" ] && [ -f ".pi-packages" ]; then
     if [ -n "$(echo "$EXTRA_PACKAGES" | tr -d '[:space:]')" ]; then
         HAS_PACKAGES=1
     fi
+fi
+
+# Derive image name
+# PI_AGENT_IMAGE overrides everything. Otherwise, use per-project naming
+# when .pi-packages has valid packages, else shared base.
+if [ -n "${PI_AGENT_IMAGE:-}" ]; then
+    IMAGE_NAME="$PI_AGENT_IMAGE"
+elif [ "$HAS_PACKAGES" -eq 1 ]; then
+    PKG_HASH=$(compute_hash ".pi-packages")
+    IMAGE_NAME="pi-agent-isolated-${PROJECT_NAME}-${PKG_HASH}"
+else
+    IMAGE_NAME="pi-agent-isolated"
 fi
 
 # Ensure mount source exists

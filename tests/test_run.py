@@ -319,6 +319,116 @@ def test_run_script_reset_removes_volume():
         assert "pi-agent-persist-" in log_content, f"Expected persistent volume name, got: {log_content}"
 
 
+def test_run_script_derives_per_project_image_name():
+    """Verifies run.sh uses pi-agent-isolated-<project>-<hash> when .pi-packages exists."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = pathlib.Path(tmpdir)
+        fake_podman = tmpdir / "podman"
+        log_file = tmpdir / "podman.log"
+        fake_config = tmpdir / "pi-config"
+        fake_config.mkdir()
+
+        fake_podman.write_text(
+            f'#!/bin/bash\n'
+            f'echo "$@" >> "{log_file}"\n'
+            f'exit 1\n'
+        )
+        fake_podman.chmod(0o755)
+
+        (tmpdir / ".pi-packages").write_text("cmake\n")
+
+        env = os.environ.copy()
+        env["PATH"] = f"{tmpdir}:{env['PATH']}"
+        env["HOME"] = str(tmpdir)
+        env["PI_AGENT_CONFIG"] = str(fake_config)
+
+        result = subprocess.run(
+            [str(REPO_ROOT / "run.sh"), "echo", "test"],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(tmpdir),
+        )
+        build_line = log_file.read_text()
+        # Should contain pi-agent-isolated-<basename>-<hash>
+        assert "pi-agent-isolated-" in build_line, f"Expected per-project image name, got: {build_line}"
+        # Should NOT be just pi-agent-isolated
+        for line in build_line.splitlines():
+            if "build" in line or "run" in line:
+                assert line.strip() != "pi-agent-isolated", \
+                    f"Should not use bare shared base, got: {line}"
+
+
+def test_pi_agent_image_overrides_per_project_naming():
+    """Verifies PI_AGENT_IMAGE takes precedence over .pi-packages derivation."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = pathlib.Path(tmpdir)
+        fake_podman = tmpdir / "podman"
+        log_file = tmpdir / "podman.log"
+        fake_config = tmpdir / "pi-config"
+        fake_config.mkdir()
+
+        fake_podman.write_text(
+            f'#!/bin/bash\n'
+            f'echo "$@" >> "{log_file}"\n'
+            f'exit 1\n'
+        )
+        fake_podman.chmod(0o755)
+
+        (tmpdir / ".pi-packages").write_text("cmake\n")
+
+        env = os.environ.copy()
+        env["PATH"] = f"{tmpdir}:{env['PATH']}"
+        env["HOME"] = str(tmpdir)
+        env["PI_AGENT_CONFIG"] = str(fake_config)
+        env["PI_AGENT_IMAGE"] = "my-custom-image"
+
+        result = subprocess.run(
+            [str(REPO_ROOT / "run.sh"), "echo", "test"],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(tmpdir),
+        )
+        build_line = log_file.read_text()
+        assert "my-custom-image" in build_line, f"Expected PI_AGENT_IMAGE override, got: {build_line}"
+
+
+def test_pi_agent_image_overrides_shared_base():
+    """Verifies PI_AGENT_IMAGE overrides even when no .pi-packages exists."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = pathlib.Path(tmpdir)
+        fake_podman = tmpdir / "podman"
+        log_file = tmpdir / "podman.log"
+        fake_config = tmpdir / "pi-config"
+        fake_config.mkdir()
+
+        fake_podman.write_text(
+            f'#!/bin/bash\n'
+            f'echo "$@" >> "{log_file}"\n'
+            f'exit 1\n'
+        )
+        fake_podman.chmod(0o755)
+
+        # No .pi-packages
+
+        env = os.environ.copy()
+        env["PATH"] = f"{tmpdir}:{env['PATH']}"
+        env["HOME"] = str(tmpdir)
+        env["PI_AGENT_CONFIG"] = str(fake_config)
+        env["PI_AGENT_IMAGE"] = "my-custom-image"
+
+        result = subprocess.run(
+            [str(REPO_ROOT / "run.sh"), "echo", "test"],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(tmpdir),
+        )
+        build_line = log_file.read_text()
+        assert "my-custom-image" in build_line, f"Expected PI_AGENT_IMAGE override, got: {build_line}"
+
+
 def test_run_script_pi_agent_image_bypasses_packages():
     """Verifies PI_AGENT_IMAGE bypasses .pi-packages entirely, even with dangerous content."""
     with tempfile.TemporaryDirectory() as tmpdir:
