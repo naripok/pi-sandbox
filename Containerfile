@@ -1,7 +1,10 @@
 FROM archlinux:latest
 
+ARG EXTRA_PACKAGES=""
+
 RUN pacman -Syu --noconfirm && \
-    pacman -S --noconfirm nodejs npm git openssh bash fd ripgrep diffutils python python-pip uv gcc make ast-grep rsync && \
+    pacman -S --noconfirm nodejs npm git openssh bash fd ripgrep diffutils python python-pip uv gcc make ast-grep rsync ${EXTRA_PACKAGES} || \
+    { echo "Error: Failed to install packages. Check names in .pi-packages." >&2; exit 1; } && \
     pacman -Scc --noconfirm
 
 # Strip setuid/setgid bits — hardening the image

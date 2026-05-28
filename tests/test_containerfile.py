@@ -41,3 +41,16 @@ def test_containerfile_pins_pi_agent_version():
     content = (REPO_ROOT / "Containerfile").read_text()
     assert "ARG PI_AGENT_VERSION=" in content, "Missing version ARG for pi-coding-agent"
     assert "@${PI_AGENT_VERSION}" in content, "pi-coding-agent install should use the version ARG"
+
+
+def test_containerfile_accepts_extra_packages_arg():
+    """Verifies Containerfile defines EXTRA_PACKAGES build arg."""
+    content = (REPO_ROOT / "Containerfile").read_text()
+    assert "ARG EXTRA_PACKAGES" in content, "Missing ARG EXTRA_PACKAGES"
+    assert "EXTRA_PACKAGES" in content, "EXTRA_PACKAGES must be used in the build"
+
+
+def test_containerfile_has_build_error_handling():
+    """Verifies Containerfile has error handling for package installation failures."""
+    content = (REPO_ROOT / "Containerfile").read_text()
+    assert "exit 1" in content, "Must have explicit error exit on package failure"
