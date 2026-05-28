@@ -111,6 +111,9 @@ def test_run_script_parses_packages_from_file():
         fake_podman.write_text(
             f'#!/bin/bash\n'
             f'echo "$@" >> "{log_file}"\n'
+            f'if [ "$1" = "image" ] && [ "$2" = "exists" ]; then\n'
+            f'    exit 1\n'
+            f'fi\n'
             f'exit 0\n'
         )
         fake_podman.chmod(0o755)
@@ -253,6 +256,9 @@ def test_run_script_strips_crlf_from_packages():
         fake_podman.write_text(
             f'#!/bin/bash\n'
             f'echo "$@" >> "{log_file}"\n'
+            f'if [ "$1" = "image" ] && [ "$2" = "exists" ]; then\n'
+            f'    exit 1\n'
+            f'fi\n'
             f'exit 0\n'
         )
         fake_podman.chmod(0o755)
@@ -311,3 +317,42 @@ def test_run_script_reset_removes_volume():
         log_content = log_file.read_text()
         assert "volume rm" in log_content, f"Expected volume rm, got: {log_content}"
         assert "pi-agent-persist-" in log_content, f"Expected persistent volume name, got: {log_content}"
+
+
+def test_run_script_pi_agent_image_bypasses_packages():
+    """Verifies PI_AGENT_IMAGE bypasses .pi-packages entirely, even with dangerous content."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = pathlib.Path(tmpdir)
+        fake_podman = tmpdir / "podman"
+        log_file = tmpdir / "podman.log"
+        fake_config = tmpdir / "pi-config"
+        fake_config.mkdir()
+
+        fake_podman.write_text(
+            f'#!/bin/bash\n'
+            f'echo "$@" >> "{log_file}"\n'
+            f'exit 1\n'
+        )
+        fake_podman.chmod(0o755)
+
+        # .pi-packages contains dangerous characters — would normally be rejected
+        (tmpdir / ".pi-packages").write_text("cmake; rm -rf /\n")
+
+        env = os.environ.copy()
+        env["PATH"] = f"{tmpdir}:{env['PATH']}"
+        env["HOME"] = str(tmpdir)
+        env["PI_AGENT_CONFIG"] = str(fake_config)
+        env["PI_AGENT_IMAGE"] = "my-custom-image"
+
+        result = subprocess.run(
+            [str(REPO_ROOT / "run.sh"), "echo", "test"],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(tmpdir),
+        )
+        # Should NOT error about dangerous characters (PI_AGENT_IMAGE bypasses .pi-packages)
+        output = result.stdout + result.stderr
+        assert "dangerous" not in output.lower(), f"PI_AGENT_IMAGE should bypass validation, got: {output}"
+        build_line = log_file.read_text()
+        assert "my-custom-image" in build_line, f"Expected PI_AGENT_IMAGE override, got: {build_line}"

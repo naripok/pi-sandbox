@@ -48,6 +48,9 @@ validate_packages() {
     fi
     local invalid_line
     invalid_line=$(sed 's/\r$//' "$file" | \
+        sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | \
+        { grep -v '^#' || true; } | \
+        { grep -v '^$' || true; } | \
         grep -n '[;|$\`&><*?~\\!]' || true)
     if [ -n "$invalid_line" ]; then
         echo "Error: .pi-packages contains dangerous characters:" >&2
@@ -128,11 +131,6 @@ fi
 # Allocate TTY only when stdin is a terminal
 TTY_FLAG=""
 [ -t 0 ] && TTY_FLAG="-t"
-
-# Pass extra packages info to the container
-if [ "$HAS_PACKAGES" -eq 1 ]; then
-    ENV_ARGS+=(-e "EXTRA_PACKAGES=${EXTRA_PACKAGES}")
-fi
 
 exec podman run -i ${TTY_FLAG} --rm \
     --name "$CONTAINER_NAME" \
