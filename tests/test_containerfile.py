@@ -2,8 +2,10 @@ import pathlib
 
 REPO_ROOT = pathlib.Path(__file__).parent.parent
 
+
 def test_containerfile_exists():
     assert (REPO_ROOT / "Containerfile").exists()
+
 
 def test_containerfile_has_required_directives():
     content = (REPO_ROOT / "Containerfile").read_text()
@@ -13,7 +15,7 @@ def test_containerfile_has_required_directives():
     assert "git" in content
     assert "openssh" in content
     assert "bash" in content
-    assert "@mariozechner/pi-coding-agent" in content
+    assert "@earendil-works/pi-coding-agent" in content
     assert "useradd" in content
     assert "USER pi" in content
     assert "WORKDIR /workspace" in content
@@ -23,7 +25,6 @@ def test_containerfile_has_required_directives():
 def test_containerfile_has_rsync_package():
     content = (REPO_ROOT / "Containerfile").read_text()
     assert "rsync" in content, "Missing rsync package for config sync"
-
 
 
 def test_containerfile_has_entrypoint():
@@ -40,7 +41,9 @@ def test_containerfile_has_user_pi():
 def test_containerfile_pins_pi_agent_version():
     content = (REPO_ROOT / "Containerfile").read_text()
     assert "ARG PI_AGENT_VERSION=" in content, "Missing version ARG for pi-coding-agent"
-    assert "@${PI_AGENT_VERSION}" in content, "pi-coding-agent install should use the version ARG"
+    assert "@${PI_AGENT_VERSION}" in content, (
+        "pi-coding-agent install should use the version ARG"
+    )
 
 
 def test_containerfile_accepts_extra_packages_arg():
@@ -54,5 +57,6 @@ def test_containerfile_has_build_error_handling():
     """Verifies Containerfile has error handling for package installation failures."""
     content = (REPO_ROOT / "Containerfile").read_text()
     assert "exit 1" in content, "Must have explicit error exit on package failure"
-    assert "EXTRA_PACKAGES" in content or "extra" in content.lower(), \
+    assert "EXTRA_PACKAGES" in content or "extra" in content.lower(), (
         "Error message should reference the extra packages that failed"
+    )
