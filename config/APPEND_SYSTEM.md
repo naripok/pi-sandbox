@@ -26,7 +26,7 @@ You are running inside a **rootless Podman container** (Arch Linux).
 ## Installed Tools
 
 **Languages:** Node.js, npm, Python, pip, uv
-**System:** bash, git, gcc, make, rsync, fd, ripgrep, ast-grep, openssh
+**System:** bash, git, gcc, make, rsync, fd, ripgrep, ast-grep, openssh, which
 **Agent:** pi (pi-coding-agent CLI)
 
 **Package installs:** `npm install -g` → `~/.local/`, `pip install --user` → `~/.local/`. No pacman (root required).
