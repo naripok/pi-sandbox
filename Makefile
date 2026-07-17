@@ -6,7 +6,7 @@ install:
 	./install.sh
 
 build:
-	podman build -t $(IMAGE_NAME) .
+	podman build -t $(IMAGE_NAME) . --no-cache
 
 shell:
 	./run.sh bash
