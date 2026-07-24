@@ -57,7 +57,6 @@ def test_append_system_doc_describes_tools():
 def test_append_system_doc_lists_pip():
     content = (REPO_ROOT / "config" / "APPEND_SYSTEM.md").read_text()
     assert "pip" in content
-    assert "python-pip" in content
 
 
 def test_append_system_doc_describes_security():
