@@ -10,7 +10,7 @@ RUN pacman -Syu --noconfirm && \
 # Strip setuid/setgid bits — hardening the image
 RUN find / \( -path /proc -o -path /sys \) -prune -o -perm /6000 -type f -exec chmod a-s {} +
 
-ARG PI_AGENT_VERSION=0.80.10
+ARG PI_AGENT_VERSION=0.82.0
 RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent@${PI_AGENT_VERSION}
 
 RUN useradd -m -u 1000 -s /bin/bash pi
